@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "VST3PluginHost.h"
+#include "UserConfig.h"
 
 //==============================================================================
 /**
@@ -121,19 +122,61 @@ private:
         
         void refreshPluginList();
         void setVisible(bool shouldBeVisible) override;
+        void setUserConfig(UserConfig* config) { userConfig = config; }
         
     private:
         VST3PluginHost& pluginHost;
+        UserConfig* userConfig = nullptr;
         
+        // Main UI components  
         juce::ListBox pluginList;
         juce::TextButton refreshButton;
         juce::TextButton closeButton;
         juce::Label headerLabel;
         
+        // Search path management UI
+        juce::TabbedComponent tabs;
+        juce::Component pluginListTab;
+        juce::Component searchPathsTab;
+        
+        // Search paths tab components
+        juce::ListBox searchPathsList;
+        juce::TextButton addPathButton;
+        juce::TextButton removePathButton;
+        juce::TextButton resetToDefaultsButton;
+        juce::Label searchPathsLabel;
+        
+        // Search paths ListBoxModel
+        class SearchPathsListModel : public juce::ListBoxModel
+        {
+        public:
+            SearchPathsListModel(PluginBrowser& owner) : owner(owner) {}
+            
+            int getNumRows() override;
+            void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
+            void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override;
+            
+        private:
+            PluginBrowser& owner;
+        };
+        
+        SearchPathsListModel searchPathsModel;
+        
+        // Helper methods
+        void showAddPathDialog();
+        void removeSelectedPath();
+        void resetPathsToDefaults();
+        void refreshSearchPathsList();
+        
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginBrowser)
     };
     
     //==============================================================================
+public:
+    // Access to plugin browser for configuration  
+    PluginBrowser* getPluginBrowser();
+    
+private:
     class LevelMeter : public juce::Component
     {
     public:

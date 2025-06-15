@@ -855,46 +855,90 @@ void PluginChainComponent::PluginSlot::drawStatusIndicator(juce::Graphics& g, co
 //==============================================================================
 // PluginBrowser Implementation
 //==============================================================================
-PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost& host)
-    : pluginHost(host)
+PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost& host) 
+    : pluginHost(host), searchPathsModel(*this), tabs(juce::TabbedButtonBar::TabsAtTop)
 {
-    addAndMakeVisible(headerLabel);
-    addAndMakeVisible(pluginList);
-    addAndMakeVisible(refreshButton);
-    addAndMakeVisible(closeButton);
+    // Setup tabs
+    addAndMakeVisible(tabs);
+    tabs.setTabBarDepth(30);
+    
+    // Plugin List Tab
+    pluginListTab.addAndMakeVisible(headerLabel);
+    pluginListTab.addAndMakeVisible(pluginList);
+    pluginListTab.addAndMakeVisible(refreshButton);
     
     headerLabel.setText("Available VST3 Plugins", juce::dontSendNotification);
     headerLabel.setFont(juce::Font(16.0f, juce::Font::bold));
     headerLabel.setJustificationType(juce::Justification::centred);
     headerLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     
-    refreshButton.setButtonText("Refresh");
-    closeButton.setButtonText("Close");
-    
-    // Apply modern theme to buttons - they'll use the LookAndFeel gradients
-    refreshButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
+    refreshButton.setButtonText("Refresh Plugins");
+    refreshButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
     refreshButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    refreshButton.addListener(this);
     
-    closeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
-    closeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    
-    // Apply transparent theme to list box for clean integration
     pluginList.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
     pluginList.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
-    
-    refreshButton.addListener(this);
-    closeButton.addListener(this);
-    
     pluginList.setModel(this);
     pluginList.setMultipleSelectionEnabled(false);
-    pluginList.setRowHeight(40); // Taller rows for better padding
+    pluginList.setRowHeight(40);
+    
+    tabs.addTab("Plugins", juce::Colour(0xff1e1e1e), &pluginListTab, false);
+    
+    // Search Paths Tab
+    searchPathsTab.addAndMakeVisible(searchPathsLabel);
+    searchPathsTab.addAndMakeVisible(searchPathsList);
+    searchPathsTab.addAndMakeVisible(addPathButton);
+    searchPathsTab.addAndMakeVisible(removePathButton);
+    searchPathsTab.addAndMakeVisible(resetToDefaultsButton);
+    
+    searchPathsLabel.setText("VST Search Paths", juce::dontSendNotification);
+    searchPathsLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+    searchPathsLabel.setJustificationType(juce::Justification::centred);
+    searchPathsLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    
+    addPathButton.setButtonText("Add Path");
+    removePathButton.setButtonText("Remove Path");
+    resetToDefaultsButton.setButtonText("Reset to Defaults");
+    
+    // Style search paths buttons to match main app theme
+    addPathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    addPathButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    removePathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    removePathButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    resetToDefaultsButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    resetToDefaultsButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    
+    addPathButton.addListener(this);
+    removePathButton.addListener(this);
+    resetToDefaultsButton.addListener(this);
+    
+    searchPathsList.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    searchPathsList.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+    searchPathsList.setModel(&searchPathsModel);
+    searchPathsList.setMultipleSelectionEnabled(false);
+    searchPathsList.setRowHeight(30);
+    
+    tabs.addTab("Search Paths", juce::Colour(0xff1e1e1e), &searchPathsTab, false);
+    
+    // Close button
+    addAndMakeVisible(closeButton);
+    closeButton.setButtonText("x");  // Use × symbol for close button
+    closeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    closeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    closeButton.addListener(this);
 }
 
 PluginChainComponent::PluginBrowser::~PluginBrowser()
 {
     refreshButton.removeListener(this);
     closeButton.removeListener(this);
+    addPathButton.removeListener(this);
+    removePathButton.removeListener(this);
+    resetToDefaultsButton.removeListener(this);
+    
     pluginList.setModel(nullptr);
+    searchPathsList.setModel(nullptr);
 }
 
 void PluginChainComponent::PluginBrowser::paint(juce::Graphics& g)
@@ -905,15 +949,34 @@ void PluginChainComponent::PluginBrowser::paint(juce::Graphics& g)
 
 void PluginChainComponent::PluginBrowser::resized()
 {
-    auto bounds = getLocalBounds().reduced(30);
+    auto bounds = getLocalBounds().reduced(5); // Smaller margins
     
-    headerLabel.setBounds(bounds.removeFromTop(30));
+    // Main tabs area
+    tabs.setBounds(bounds);
     
-    auto buttonArea = bounds.removeFromBottom(40);
-    refreshButton.setBounds(buttonArea.removeFromLeft(100).reduced(5));
-    closeButton.setBounds(buttonArea.removeFromRight(100).reduced(5));
+    // Position close button aligned with tab bar (top right)
+    auto tabBarBounds = tabs.getBounds();
+    closeButton.setBounds(tabBarBounds.getRight() - 32, tabBarBounds.getY() + 2, 28, 26);
     
-    pluginList.setBounds(bounds.reduced(10));
+    // Layout for Plugin List Tab
+    auto pluginListBounds = pluginListTab.getLocalBounds().reduced(10);
+    headerLabel.setBounds(pluginListBounds.removeFromTop(30));
+    
+    auto pluginButtonArea = pluginListBounds.removeFromBottom(35);
+    refreshButton.setBounds(pluginButtonArea.removeFromLeft(120).reduced(5));
+    
+    pluginList.setBounds(pluginListBounds.reduced(5));
+    
+    // Layout for Search Paths Tab
+    auto searchPathsBounds = searchPathsTab.getLocalBounds().reduced(10);
+    searchPathsLabel.setBounds(searchPathsBounds.removeFromTop(30));
+    
+    auto pathButtonArea = searchPathsBounds.removeFromBottom(35);
+    addPathButton.setBounds(pathButtonArea.removeFromLeft(80).reduced(5));
+    removePathButton.setBounds(pathButtonArea.removeFromLeft(100).reduced(5));
+    resetToDefaultsButton.setBounds(pathButtonArea.removeFromRight(130).reduced(5));
+    
+    searchPathsList.setBounds(searchPathsBounds.reduced(5));
 }
 
 int PluginChainComponent::PluginBrowser::getNumRows()
@@ -975,6 +1038,18 @@ void PluginChainComponent::PluginBrowser::buttonClicked(juce::Button* button)
     {
         setVisible(false);
     }
+    else if (button == &addPathButton)
+    {
+        showAddPathDialog();
+    }
+    else if (button == &removePathButton)
+    {
+        removeSelectedPath();
+    }
+    else if (button == &resetToDefaultsButton)
+    {
+        resetPathsToDefaults();
+    }
 }
 
 void PluginChainComponent::PluginBrowser::refreshPluginList()
@@ -989,7 +1064,103 @@ void PluginChainComponent::PluginBrowser::setVisible(bool shouldBeVisible)
     if (shouldBeVisible)
     {
         refreshPluginList();
+        refreshSearchPathsList();
     }
+}
+
+void PluginChainComponent::PluginBrowser::showAddPathDialog()
+{
+    auto chooser = std::make_unique<juce::FileChooser>("Select VST3 Directory", juce::File::getCurrentWorkingDirectory());
+    
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                        [this](const juce::FileChooser& fc)
+                        {
+                            auto result = fc.getResult();
+                            if (result.exists() && userConfig != nullptr)
+                            {
+                                userConfig->addVSTSearchPath(result.getFullPathName());
+                                refreshSearchPathsList();
+                                refreshPluginList();
+                            }
+                        });
+}
+
+void PluginChainComponent::PluginBrowser::removeSelectedPath()
+{
+    int selectedRow = searchPathsList.getSelectedRow();
+    if (selectedRow >= 0 && userConfig != nullptr)
+    {
+        auto paths = userConfig->getVSTSearchPaths();
+        if (selectedRow < paths.size())
+        {
+            userConfig->removeVSTSearchPath(paths[selectedRow]);
+            refreshSearchPathsList();
+            refreshPluginList(); // Refresh plugins after removing path
+        }
+    }
+}
+
+void PluginChainComponent::PluginBrowser::resetPathsToDefaults()
+{
+    if (userConfig != nullptr)
+    {
+        userConfig->clearVSTSearchPaths();
+        auto defaultPaths = UserConfig::getDefaultVSTSearchPaths();
+        userConfig->setVSTSearchPaths(defaultPaths);
+        refreshSearchPathsList();
+        refreshPluginList(); // Refresh plugins after resetting paths
+    }
+}
+
+void PluginChainComponent::PluginBrowser::refreshSearchPathsList()
+{
+    searchPathsList.updateContent();
+    searchPathsList.repaint();
+}
+
+//==============================================================================
+// SearchPathsListModel Implementation
+//==============================================================================
+int PluginChainComponent::PluginBrowser::SearchPathsListModel::getNumRows()
+{
+    if (owner.userConfig != nullptr)
+        return owner.userConfig->getVSTSearchPaths().size();
+    return 0;
+}
+
+void PluginChainComponent::PluginBrowser::SearchPathsListModel::paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected)
+{
+    auto bounds = juce::Rectangle<float>(0, 0, width, height);
+    
+    if (rowIsSelected)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        g.fillRoundedRectangle(bounds.reduced(2), 3.0f);
+        
+        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        g.drawRoundedRectangle(bounds.reduced(2), 3.0f, 1.0f);
+    }
+    else
+    {
+        g.setColour(juce::Colour(0xff1e1e1e));
+        g.fillRoundedRectangle(bounds.reduced(2), 3.0f);
+    }
+    
+    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffe0e0e0));
+    
+    if (owner.userConfig != nullptr)
+    {
+        auto paths = owner.userConfig->getVSTSearchPaths();
+        if (rowNumber < paths.size())
+        {
+            g.drawText(paths[rowNumber], 10, 0, width - 20, height, juce::Justification::centredLeft);
+        }
+    }
+}
+
+void PluginChainComponent::PluginBrowser::SearchPathsListModel::listBoxItemDoubleClicked(int row, const juce::MouseEvent&)
+{
+    // Could implement editing functionality here if needed
 }
 
 //==============================================================================
@@ -1041,4 +1212,12 @@ void PluginChainComponent::LevelMeter::setLevel(float newLevel)
     level = juce::jlimit(0.0f, 1.0f, newLevel);
     smoothedLevel.setTargetValue(level.load());
     repaint();
+}
+
+//==============================================================================
+// PluginChainComponent Implementation
+//==============================================================================
+PluginChainComponent::PluginBrowser* PluginChainComponent::getPluginBrowser()
+{
+    return pluginBrowser.get();
 } 

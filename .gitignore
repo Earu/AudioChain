@@ -8,6 +8,9 @@ Builds/*
 !Builds/MacOSX/
 !Builds/MacOSX/Info-App.plist
 
+# Ignore everything in Builds/MacOSX directory
+Builds/MacOSX/*
+
 # Visual Studio
 Builds/VisualStudio2022/.vs/
 Builds/VisualStudio2022/x64/
