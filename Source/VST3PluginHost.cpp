@@ -125,15 +125,15 @@ bool VST3PluginHost::loadPlugin(const PluginInfo& pluginInfo)
     else
     {
         // Fallback: create description manually
-        description.name = pluginInfo.name;
-        description.manufacturerName = pluginInfo.manufacturer;
-        description.version = pluginInfo.version;
-        description.pluginFormatName = pluginInfo.pluginFormatName;
-        description.fileOrIdentifier = pluginInfo.fileOrIdentifier;
-        description.numInputChannels = pluginInfo.numInputChannels;
-        description.numOutputChannels = pluginInfo.numOutputChannels;
-        description.isInstrument = pluginInfo.isInstrument;
-        description.hasSharedContainer = false;
+    description.name = pluginInfo.name;
+    description.manufacturerName = pluginInfo.manufacturer;
+    description.version = pluginInfo.version;
+    description.pluginFormatName = pluginInfo.pluginFormatName;
+    description.fileOrIdentifier = pluginInfo.fileOrIdentifier;
+    description.numInputChannels = pluginInfo.numInputChannels;
+    description.numOutputChannels = pluginInfo.numOutputChannels;
+    description.isInstrument = pluginInfo.isInstrument;
+    description.hasSharedContainer = false;
         DBG("Using manual description for: " + pluginInfo.name);
     }
     
@@ -514,12 +514,12 @@ void VST3PluginHost::scanVST3Plugins()
                 if (addedCount >= 3) break; // Limit to 3 plugins for testing
                 
                 DBG("  Found VST3 bundle: " + vstBundle.getFullPathName());
-                
+    
                 // Check if it's a valid VST3 bundle by looking for Contents/MacOS
                 auto contentsDir = vstBundle.getChildFile("Contents");
                 auto macOSDir = contentsDir.getChildFile("MacOS");
                 if (contentsDir.exists() && macOSDir.exists())
-                {
+        {
                     DBG("    Valid VST3 bundle structure");
                     
                     // Try to get proper plugin description using JUCE
@@ -539,7 +539,7 @@ void VST3PluginHost::scanVST3Plugins()
                     // Create plugin info from description or fallback
                     PluginInfo info;
                     if (foundDescription)
-                    {
+    {
                         auto* description = descriptions[0]; // Use first description
                         info.name = description->name.isNotEmpty() ? description->name : vstBundle.getFileNameWithoutExtension();
                         info.manufacturer = description->manufacturerName.isNotEmpty() ? description->manufacturerName : "Unknown";
@@ -574,9 +574,9 @@ void VST3PluginHost::scanVST3Plugins()
                     addedCount++;
                     
                     DBG("    Added plugin: " + info.name + " by " + info.manufacturer);
-                }
-                else
-                {
+            }
+            else
+            {
                     DBG("    Invalid VST3 bundle structure");
                 }
             }
@@ -584,8 +584,8 @@ void VST3PluginHost::scanVST3Plugins()
         else
         {
             DBG("VST3 directory doesn't exist: " + vstDir.getFullPathName());
+            }
         }
-    }
     else
     {
         DBG("ERROR: VST3 format not found in format manager!");

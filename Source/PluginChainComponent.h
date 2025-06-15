@@ -33,7 +33,8 @@ public:
 private:
     //==============================================================================
     class PluginSlot : public juce::Component,
-                       public juce::Button::Listener
+                       public juce::Button::Listener,
+                       public juce::DragAndDropTarget
     {
     public:
         PluginSlot(int index, VST3PluginHost& host, PluginChainComponent& parent);
@@ -42,6 +43,18 @@ private:
         void paint(juce::Graphics& g) override;
         void resized() override;
         void buttonClicked(juce::Button* button) override;
+        void mouseDown(const juce::MouseEvent& event) override;
+        void mouseUp(const juce::MouseEvent& event) override;
+        void mouseDrag(const juce::MouseEvent& event) override;
+        void mouseMove(const juce::MouseEvent& event) override;
+        void mouseExit(const juce::MouseEvent& event) override;
+        
+        // DragAndDropTarget overrides
+        bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+        void itemDragEnter(const SourceDetails& dragSourceDetails) override;
+        void itemDragMove(const SourceDetails& dragSourceDetails) override;
+        void itemDragExit(const SourceDetails& dragSourceDetails) override;
+        void itemDropped(const SourceDetails& dragSourceDetails) override;
         
         void setPluginInfo(const VST3PluginHost::PluginInfo& info);
         void clearPlugin();
@@ -60,22 +73,26 @@ private:
         // UI Elements
         juce::Label nameLabel;
         juce::Label manufacturerLabel;
-        juce::TextButton bypassButton;
         juce::TextButton editButton;
         juce::TextButton removeButton;
         
         // Visual elements
         bool isBypassed = false;
+        bool isStatusIndicatorHovered = false;
+        bool isDragOver = false;
+        juce::Point<int> mouseDownPosition;
         juce::Colour slotColour;
         juce::Colour primaryColour;
         juce::Colour secondaryColour;
         juce::Colour accentColour;
+        juce::Rectangle<int> statusIndicatorBounds;  // For the status circle
         
         // Visual enhancement methods
         void generatePluginTheme();
         void drawPluginBackground(juce::Graphics& g, const juce::Rectangle<int>& bounds);
         void drawProceduralPattern(juce::Graphics& g, const juce::Rectangle<int>& bounds);
         void drawPluginIcon(juce::Graphics& g, const juce::Rectangle<int>& iconArea);
+        void drawStatusIndicator(juce::Graphics& g, const juce::Rectangle<int>& bounds);
         juce::Colour getHashBasedColour(const juce::String& text, float saturation = 0.7f, float brightness = 0.8f);
         juce::Colour getPluginTypeColour(bool isInstrument);
         

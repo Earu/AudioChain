@@ -185,7 +185,7 @@ void MainComponent::audioDeviceIOCallbackWithContext(const float* const* inputCh
             int nonZeroSamples = 0;
             
             for (int channel = 0; channel < numInputChannels; ++channel)
-            {
+    {
                 if (inputChannelData[channel])
                 {
                     for (int sample = 0; sample < numSamples; ++sample)
@@ -259,7 +259,7 @@ void MainComponent::audioDeviceIOCallbackWithContext(const float* const* inputCh
 }
 
 void MainComponent::audioDeviceAboutToStart(juce::AudioIODevice* device)
-{
+            {
     DBG("Audio device about to start: " + device->getName());
     
     double sampleRate = device->getCurrentSampleRate();
@@ -584,9 +584,9 @@ void MainComponent::updateInputDeviceList()
     {
         // Populate input devices
         auto inputDevices = audioInputManager->getAvailableInputDevices();
-        
+    
         for (int i = 0; i < inputDevices.size(); ++i)
-        {
+    {
             inputDeviceComboBox.addItem(inputDevices[i], i + 1);
         }
         
@@ -607,9 +607,9 @@ void MainComponent::updateInputDeviceList()
             {
                 inputDeviceComboBox.setSelectedItemIndex(micIndex);
                 DBG("Auto-selected microphone for testing");
-            }
-            else
-            {
+    }
+    else
+    {
                 inputDeviceComboBox.setSelectedItemIndex(0);
             }
             inputDeviceChanged(); // Set the selected device
@@ -642,7 +642,7 @@ void MainComponent::toggleProcessing()
         {
             audioInputManager->getAudioDeviceManager().removeAudioCallback(this);
             audioInputManager->stop();
-        }
+    }
         
         isProcessingActive = false;
         processingToggleButton.setButtonText("Start Processing");
@@ -659,7 +659,7 @@ void MainComponent::toggleProcessing()
     {
         // Start processing
         if (!audioInputManager || !audioInputManager->hasValidInputDevice())
-        {
+    {
             DBG("No input device selected");
             return;
         }
@@ -680,9 +680,9 @@ void MainComponent::toggleProcessing()
                 audioProcessor->start();
             
             DBG("Audio processing started from: " + audioInputManager->getCurrentInputDevice());
-        }
-        else
-        {
+            }
+            else
+            {
             DBG("Failed to start audio processing");
         }
     }
@@ -716,7 +716,7 @@ void MainComponent::outputDeviceChanged()
     int selectedIndex = outputDeviceComboBox.getSelectedItemIndex();
     
     DBG("Output device selection changed - index: " + juce::String(selectedIndex));
-    
+        
     if (selectedIndex >= 0 && audioInputManager)
     {
         juce::String deviceName = outputDeviceComboBox.getItemText(selectedIndex);
