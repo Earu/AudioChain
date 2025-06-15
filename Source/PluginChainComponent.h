@@ -162,6 +162,9 @@ private:
         
         SearchPathsListModel searchPathsModel;
         
+        // File chooser (needs to stay alive during async operation)
+        std::unique_ptr<juce::FileChooser> fileChooser;
+        
         // Helper methods
         void showAddPathDialog();
         void removeSelectedPath();
