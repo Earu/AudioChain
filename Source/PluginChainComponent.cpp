@@ -346,6 +346,9 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics& g)
     
     if (hasPlugin())
     {
+        // Store original bounds for shadow
+        auto originalBounds = bounds;
+        
         // Draw enhanced plugin background
         drawPluginBackground(g, bounds);
         
@@ -357,11 +360,11 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics& g)
         iconArea.removeFromTop(12); // Make room for status indicator
         drawPluginIcon(g, iconArea);
         
-        // Add subtle shadow effect when not bypassed
+        // Add subtle shadow effect when not bypassed - use original bounds
         if (!isBypassed)
         {
             g.setColour(juce::Colours::black.withAlpha(0.3f));
-            g.drawRect(bounds.expanded(1), 1);
+            g.drawRect(originalBounds.expanded(1), 1);
         }
     }
     else
@@ -868,26 +871,23 @@ PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost& host)
     refreshButton.setButtonText("Refresh");
     closeButton.setButtonText("Close");
     
-    // Apply dark theme to buttons
+    // Apply modern theme to buttons - they'll use the LookAndFeel gradients
     refreshButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
-    refreshButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff404040));
     refreshButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    refreshButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     
     closeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
-    closeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff404040));
     closeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    closeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     
-    // Apply dark theme to list box
-    pluginList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff1a1a1a));
-    pluginList.setColour(juce::ListBox::outlineColourId, juce::Colour(0xff404040));
+    // Apply transparent theme to list box for clean integration
+    pluginList.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+    pluginList.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
     
     refreshButton.addListener(this);
     closeButton.addListener(this);
     
     pluginList.setModel(this);
     pluginList.setMultipleSelectionEnabled(false);
+    pluginList.setRowHeight(40); // Taller rows for better padding
 }
 
 PluginChainComponent::PluginBrowser::~PluginBrowser()
@@ -899,20 +899,8 @@ PluginChainComponent::PluginBrowser::~PluginBrowser()
 
 void PluginChainComponent::PluginBrowser::paint(juce::Graphics& g)
 {
-    // Dark theme background with sharp corners
-    g.fillAll(juce::Colour(0xff1a1a1a));
-    
-    // Draw border
-    g.setColour(juce::Colour(0xff404040));
-    g.drawRect(getLocalBounds(), 2);
-    
-    // Draw inner panel - sharp corners, dark theme
-    auto bounds = getLocalBounds().reduced(20);
-    g.setColour(juce::Colour(0xff2d2d2d));
-    g.fillRect(bounds);
-    
-    g.setColour(juce::Colour(0xff404040));
-    g.drawRect(bounds, 1);
+    // Black background matching the main app
+    g.fillAll(juce::Colour(0xff0a0a0a));
 }
 
 void PluginChainComponent::PluginBrowser::resized()
@@ -935,26 +923,35 @@ int PluginChainComponent::PluginBrowser::getNumRows()
 
 void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected)
 {
-    // Dark theme list item styling
+    auto bounds = juce::Rectangle<float>(0, 0, width, height);
+    
+    // Modern list item styling with rounded corners and more padding
     if (rowIsSelected)
     {
-        g.setColour(juce::Colour(0xff404040));
-        g.fillRect(0, 0, width, height);
+        // Selected item with white highlight
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        g.fillRoundedRectangle(bounds.reduced(4), 4.0f);
+        
+        // Subtle border for selected item
+        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        g.drawRoundedRectangle(bounds.reduced(4), 4.0f, 1.0f);
     }
     else
     {
-        g.setColour(juce::Colour(0xff1a1a1a));
-        g.fillRect(0, 0, width, height);
+        // Subtle hover effect for non-selected items
+        g.setColour(juce::Colour(0xff1e1e1e));
+        g.fillRoundedRectangle(bounds.reduced(4), 4.0f);
     }
     
-    g.setColour(juce::Colours::white);
+    // Modern text styling with more padding
+    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffe0e0e0));
     
     if (rowNumber < pluginHost.getAvailablePlugins().size())
     {
         auto& plugin = pluginHost.getAvailablePlugins().getReference(rowNumber);
         
         juce::String text = plugin.name + " - " + plugin.manufacturer;
-        g.drawText(text, 10, 0, width - 20, height, juce::Justification::centredLeft);
+        g.drawText(text, 20, 0, width - 40, height, juce::Justification::centredLeft);
     }
 }
 

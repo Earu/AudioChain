@@ -41,13 +41,13 @@ MainComponent::MainComponent()
     
     // Set basic text for components with modern styling
     DBG("Setting inputDeviceLabel text and properties...");
-    inputDeviceLabel.setText("Audio Input Device:", juce::dontSendNotification);
+    inputDeviceLabel.setText("Input Device:", juce::dontSendNotification);
     inputDeviceLabel.setFont(juce::Font(14.0f, juce::Font::bold));
     inputDeviceLabel.setColour(juce::Label::textColourId, juce::Colour(0xffe0e0e0));
     DBG("inputDeviceLabel configured successfully");
     
     DBG("Setting outputDeviceLabel text and properties...");
-    outputDeviceLabel.setText("Audio Output Device:", juce::dontSendNotification);
+    outputDeviceLabel.setText("Output Device:", juce::dontSendNotification);
     outputDeviceLabel.setFont(juce::Font(14.0f, juce::Font::bold));
     outputDeviceLabel.setColour(juce::Label::textColourId, juce::Colour(0xffe0e0e0));
     DBG("outputDeviceLabel configured successfully");
@@ -56,24 +56,24 @@ MainComponent::MainComponent()
     leftLevelLabel.setText("L", juce::dontSendNotification);
     leftLevelLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     leftLevelLabel.setJustificationType(juce::Justification::centred);
-    leftLevelLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00d4ff));
+    leftLevelLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     DBG("leftLevelLabel configured successfully");
     
     DBG("Setting rightLevelLabel text and properties...");
     rightLevelLabel.setText("R", juce::dontSendNotification);
     rightLevelLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     rightLevelLabel.setJustificationType(juce::Justification::centred);
-    rightLevelLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00d4ff));
+    rightLevelLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     DBG("rightLevelLabel configured successfully");
     
     // Configure buttons with modern styling
     
-    // Enhanced CTA styling for processing toggle button
-    processingToggleButton.setButtonText("Start Processing");
-    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0099ff));
-    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff0066cc));
-    processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    // Modern white CTA styling for processing toggle button
+    processingToggleButton.setButtonText("Start");
+    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colours::white);
+    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff6666)); // Light red when active
+    processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff0a0a0a)); // Dark text on white
+    processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white); // White text when active
     
     // Enhanced combo boxes with modern dark theme
     inputDeviceComboBox.setTextWhenNothingSelected("Select input device...");
@@ -81,14 +81,14 @@ MainComponent::MainComponent()
     inputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
     inputDeviceComboBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
     inputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
-    inputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
+    inputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
     
     outputDeviceComboBox.setTextWhenNothingSelected("Select output device...");
     outputDeviceComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e1e1e));
     outputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
     outputDeviceComboBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
     outputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
-    outputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
+    outputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
     
     // Apply dark theme to labels
     inputDeviceLabel.setColour(juce::Label::textColourId, juce::Colours::white);
@@ -304,72 +304,36 @@ void MainComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds();
     
-    // Modern gradient background
-    juce::ColourGradient backgroundGradient(juce::Colour(0xff0a0a0a), 0, 0,
-                                          juce::Colour(0xff1a1a1a), 0, getHeight(), false);
-    g.setGradientFill(backgroundGradient);
-    g.fillRect(bounds);
+    // Ultra-modern flat background - deep space black
+    g.fillAll(juce::Colour(0xff0a0a0a));
     
-    // Enhanced header with modern gradient and visual effects
-    juce::Rectangle<int> headerArea(0, 0, getWidth(), 90);
+    // Enhanced header with tech grid pattern - increased height for better spacing
+    juce::Rectangle<int> headerArea(0, 0, getWidth(), 120);
     
-    // Header gradient background
-    juce::ColourGradient headerGradient(juce::Colour(0xff2a2a2a), 0, headerArea.getY(),
-                                       juce::Colour(0xff1e1e1e), 0, headerArea.getBottom(), false);
-    g.setGradientFill(headerGradient);
+    // Header base - slightly lighter than main background
+    g.setColour(juce::Colour(0xff151515));
     g.fillRect(headerArea);
     
-    // Modern header border with accent color
-    g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
-    g.drawLine(0, 90, getWidth(), 90, 2);
+    // Draw modern tech grid pattern in header
+    drawTechGrid(g, headerArea);
     
-    // Add subtle top highlight
-    g.setColour(juce::Colour(0xff404040).withAlpha(0.5f));
+    // Modern header border with white accent - thicker and more prominent
+    g.setColour(juce::Colours::white.withAlpha(0.4f));
+    g.drawLine(0, 120, getWidth(), 120, 3);
+    
+    // Add subtle accent line at top
+    g.setColour(juce::Colours::white.withAlpha(0.1f));
     g.drawLine(0, 0, getWidth(), 0, 1);
     
-    // Enhanced status indicators with glow effects
+    // Modern tech-style status indicators
     if (!inputStatusIndicatorBounds.isEmpty())
     {
-        auto indicatorBounds = inputStatusIndicatorBounds.toFloat();
-        
-        // Glow effect
-        if (isProcessingActive)
-        {
-            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.3f));
-            g.fillEllipse(indicatorBounds.expanded(3));
-            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.6f));
-            g.fillEllipse(indicatorBounds.expanded(1));
-        }
-        
-        // Main indicator
-        g.setColour(isProcessingActive ? juce::Colour(0xff00ff88) : juce::Colour(0xff666666));
-        g.fillEllipse(indicatorBounds);
-        
-        // Subtle border
-        g.setColour(juce::Colour(0xff404040));
-        g.drawEllipse(indicatorBounds, 1.0f);
+        drawTechStatusIndicator(g, inputStatusIndicatorBounds, isProcessingActive);
     }
     
     if (!outputStatusIndicatorBounds.isEmpty())
     {
-        auto indicatorBounds = outputStatusIndicatorBounds.toFloat();
-        
-        // Glow effect
-        if (isProcessingActive)
-        {
-            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.3f));
-            g.fillEllipse(indicatorBounds.expanded(3));
-            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.6f));
-            g.fillEllipse(indicatorBounds.expanded(1));
-        }
-        
-        // Main indicator
-        g.setColour(isProcessingActive ? juce::Colour(0xff00ff88) : juce::Colour(0xff666666));
-        g.fillEllipse(indicatorBounds);
-        
-        // Subtle border
-        g.setColour(juce::Colour(0xff404040));
-        g.drawEllipse(indicatorBounds, 1.0f);
+        drawTechStatusIndicator(g, outputStatusIndicatorBounds, isProcessingActive);
     }
     
     // Enhanced level meters with modern styling
@@ -383,15 +347,13 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
     
     auto meterBounds = bounds.toFloat();
     
-    // Modern meter background with gradient
-    juce::ColourGradient bgGradient(juce::Colour(0xff0a0a0a), meterBounds.getX(), meterBounds.getY(),
-                                   juce::Colour(0xff1a1a1a), meterBounds.getX(), meterBounds.getBottom(), false);
-    g.setGradientFill(bgGradient);
-    g.fillRoundedRectangle(meterBounds, 3.0f);
+    // Ultra-modern flat meter background - deep black
+    g.setColour(juce::Colour(0xff0a0a0a));
+    g.fillRect(meterBounds);
     
-    // Modern border
-    g.setColour(juce::Colour(0xff404040));
-    g.drawRoundedRectangle(meterBounds, 3.0f, 1.0f);
+    // Sharp, modern border with white accent
+    g.setColour(juce::Colours::white.withAlpha(0.2f));
+    g.drawRect(meterBounds, 1.0f);
     
     if (isProcessingActive && level > 0.0f)
     {
@@ -407,44 +369,38 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
             auto fillRect = juce::Rectangle<float>(fillArea.getX(), fillArea.getBottom() - fillHeight, 
                                                  fillArea.getWidth(), fillHeight);
             
-            // Create beautiful gradient based on level
-            juce::Colour startColour, endColour;
+            // Modern monochromatic colors based on level - white/gray scale with minimal color
+            juce::Colour levelColour;
             if (normalizedLevel > 0.85f)
             {
-                // Red zone - danger
-                startColour = juce::Colour(0xffff4444);
-                endColour = juce::Colour(0xffcc0000);
+                // Danger zone - subtle red tint
+                levelColour = juce::Colour(0xffff6666);
             }
             else if (normalizedLevel > 0.7f)
             {
-                // Orange zone - warning
-                startColour = juce::Colour(0xffff8800);
-                endColour = juce::Colour(0xffcc4400);
+                // Warning zone - light gray
+                levelColour = juce::Colour(0xffcccccc);
             }
             else if (normalizedLevel > 0.5f)
             {
-                // Yellow zone - moderate
-                startColour = juce::Colour(0xffffdd00);
-                endColour = juce::Colour(0xffccaa00);
+                // Moderate zone - medium gray
+                levelColour = juce::Colour(0xffaaaaaa);
             }
             else
             {
-                // Green zone - safe
-                startColour = juce::Colour(0xff00ff88);
-                endColour = juce::Colour(0xff00cc44);
+                // Safe zone - white
+                levelColour = juce::Colours::white;
             }
             
-            // Apply gradient fill
-            juce::ColourGradient levelGradient(startColour, fillRect.getX(), fillRect.getY(),
-                                             endColour, fillRect.getX(), fillRect.getBottom(), false);
-            g.setGradientFill(levelGradient);
-            g.fillRoundedRectangle(fillRect, 2.0f);
+            // Apply flat fill - sharp, modern look
+            g.setColour(levelColour);
+            g.fillRect(fillRect);
             
-            // Add glow effect for high levels
+            // Add white accent border for high levels
             if (normalizedLevel > 0.7f)
             {
-                g.setColour(startColour.withAlpha(0.3f));
-                g.drawRoundedRectangle(fillRect.expanded(1), 3.0f, 1.0f);
+                g.setColour(juce::Colours::white.withAlpha(0.4f));
+                g.drawRect(fillRect, 1.0f);
             }
         }
     }
@@ -459,7 +415,7 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
         int yPos = meterBounds.getY() + (int)(meterBounds.getHeight() * normalizedPos);
         
         // Draw modern tick marks
-        g.setColour(db == 0.0f ? juce::Colour(0xff00d4ff) : juce::Colour(0xff666666));
+        g.setColour(db == 0.0f ? juce::Colours::white : juce::Colour(0xff666666));
         g.drawLine(meterBounds.getRight() + 2, yPos, meterBounds.getRight() + 8, yPos, 1.5f);
         
         // Add dB labels for key marks
@@ -474,6 +430,136 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
     }
 }
 
+void MainComponent::drawTechGrid(juce::Graphics& g, const juce::Rectangle<int>& area)
+{
+    // Modern tech grid pattern with subtle lines and accent highlights
+    
+    // Grid parameters for a sleek, tech aesthetic
+    const int gridSize = 20; // Size of each grid cell
+    const float lineThickness = 0.5f;
+    const float accentLineThickness = 1.0f;
+    
+    // Base grid color - very subtle
+    g.setColour(juce::Colour(0xff2a2a2a).withAlpha(0.3f));
+    
+    // Draw vertical grid lines
+    for (int x = area.getX(); x <= area.getRight(); x += gridSize)
+    {
+        // Every 5th line is slightly more prominent
+        bool isAccentLine = ((x - area.getX()) / gridSize) % 5 == 0;
+        
+        if (isAccentLine)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.08f));
+            g.drawLine(x, area.getY(), x, area.getBottom(), accentLineThickness);
+        }
+        else
+        {
+            g.setColour(juce::Colour(0xff404040).withAlpha(0.2f));
+            g.drawLine(x, area.getY(), x, area.getBottom(), lineThickness);
+        }
+    }
+    
+    // Draw horizontal grid lines
+    for (int y = area.getY(); y <= area.getBottom(); y += gridSize)
+    {
+        // Every 5th line is slightly more prominent
+        bool isAccentLine = ((y - area.getY()) / gridSize) % 5 == 0;
+        
+        if (isAccentLine)
+        {
+            g.setColour(juce::Colours::white.withAlpha(0.08f));
+            g.drawLine(area.getX(), y, area.getRight(), y, accentLineThickness);
+        }
+        else
+        {
+            g.setColour(juce::Colour(0xff404040).withAlpha(0.2f));
+            g.drawLine(area.getX(), y, area.getRight(), y, lineThickness);
+        }
+    }
+    
+    // Add some tech-inspired accent elements
+    
+    // Corner accent markers - small tech-style corner brackets
+    auto cornerSize = 8;
+    auto cornerThickness = 2.0f;
+    g.setColour(juce::Colours::white.withAlpha(0.3f));
+    
+    // Top-left corner
+    g.drawLine(area.getX() + 5, area.getY() + 5, area.getX() + 5 + cornerSize, area.getY() + 5, cornerThickness);
+    g.drawLine(area.getX() + 5, area.getY() + 5, area.getX() + 5, area.getY() + 5 + cornerSize, cornerThickness);
+    
+    // Top-right corner
+    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5 - cornerSize, area.getY() + 5, cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5, area.getY() + 5 + cornerSize, cornerThickness);
+    
+    // Bottom-left corner
+    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5 + cornerSize, area.getBottom() - 5, cornerThickness);
+    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5, area.getBottom() - 5 - cornerSize, cornerThickness);
+    
+    // Bottom-right corner
+    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5 - cornerSize, area.getBottom() - 5, cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5, area.getBottom() - 5 - cornerSize, cornerThickness);
+    
+    // Add subtle scan line effect
+    static float scanLineOffset = 0.0f;
+    scanLineOffset += 0.5f; // Animate the scan line
+    if (scanLineOffset > area.getHeight()) scanLineOffset = 0.0f;
+    
+    g.setColour(juce::Colours::white.withAlpha(0.03f));
+    g.drawLine(area.getX(), area.getY() + scanLineOffset, area.getRight(), area.getY() + scanLineOffset, 1.0f);
+}
+
+void MainComponent::drawTechStatusIndicator(juce::Graphics& g, const juce::Rectangle<int>& bounds, bool isActive)
+{
+    auto indicatorBounds = bounds.toFloat();
+    
+    if (isActive)
+    {
+        // Active state - modern tech style with sharp edges
+        
+        // Outer ring - white
+        g.setColour(juce::Colours::white.withAlpha(0.6f));
+        g.drawEllipse(indicatorBounds.expanded(1), 1.5f);
+        
+        // Inner core - bright green for device status
+        g.setColour(juce::Colour(0xff00ff88));
+        g.fillEllipse(indicatorBounds.reduced(1));
+        
+        // Center dot - white for high contrast
+        g.setColour(juce::Colours::white);
+        g.fillEllipse(indicatorBounds.reduced(3));
+        
+        // Add subtle pulsing effect with corner accents
+        auto centerX = indicatorBounds.getCentreX();
+        auto centerY = indicatorBounds.getCentreY();
+        auto radius = indicatorBounds.getWidth() * 0.6f;
+        
+        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        // Draw small accent lines at cardinal directions
+        g.drawLine(centerX - radius, centerY, centerX - radius + 3, centerY, 1.0f);
+        g.drawLine(centerX + radius - 3, centerY, centerX + radius, centerY, 1.0f);
+        g.drawLine(centerX, centerY - radius, centerX, centerY - radius + 3, 1.0f);
+        g.drawLine(centerX, centerY + radius - 3, centerX, centerY + radius, 1.0f);
+    }
+    else
+    {
+        // Inactive state - minimal, dark
+        
+        // Dark background
+        g.setColour(juce::Colour(0xff1a1a1a));
+        g.fillEllipse(indicatorBounds);
+        
+        // Subtle border
+        g.setColour(juce::Colour(0xff404040));
+        g.drawEllipse(indicatorBounds, 1.0f);
+        
+        // Small center dot to show it's a status indicator
+        g.setColour(juce::Colour(0xff666666));
+        g.fillEllipse(indicatorBounds.reduced(3));
+    }
+}
+
 void MainComponent::resized()
 {
     setupLayout();
@@ -483,42 +569,42 @@ void MainComponent::setupLayout()
 {
     auto area = getLocalBounds();
     
-    // Header area - compact horizontal layout for device selections
-    auto headerArea = area.removeFromTop(90);
+    // Header area - expanded layout for better spacing and less compact feel
+    auto headerArea = area.removeFromTop(120);
     
-    // Device selection area (labels + dropdowns + status indicators)
-    auto deviceArea = headerArea.removeFromTop(55);
-    deviceArea.removeFromTop(5); // Add some top padding
+    // Device selection area (labels + dropdowns + status indicators) - more vertical space
+    auto deviceArea = headerArea.removeFromTop(70);
+    deviceArea.removeFromTop(10); // Add more top padding for breathing room
     
     // Split device area horizontally for input and output
     auto inputDeviceArea = deviceArea.removeFromLeft(getWidth() / 2 - 10); // Half width minus some margin
     auto outputDeviceArea = deviceArea; // Remaining space
     
-    // Input device section (label above dropdown)
-    auto inputLabelArea = inputDeviceArea.removeFromTop(20);
+    // Input device section (label above dropdown) - more vertical space
+    auto inputLabelArea = inputDeviceArea.removeFromTop(25);
     inputDeviceLabel.setBounds(inputLabelArea.reduced(5, 0));
     
-    auto inputControlArea = inputDeviceArea.removeFromTop(30);
+    auto inputControlArea = inputDeviceArea.removeFromTop(35);
     inputDeviceComboBox.setBounds(inputControlArea.removeFromLeft(inputControlArea.getWidth() - 25).reduced(5, 0));
     
     // Status indicator circle next to input combo box
     inputStatusIndicatorBounds = inputControlArea.reduced(5);
     inputStatusIndicatorBounds = inputStatusIndicatorBounds.withSizeKeepingCentre(10, 10);
     
-    // Output device section (label above dropdown)
-    auto outputLabelArea = outputDeviceArea.removeFromTop(20);
+    // Output device section (label above dropdown) - more vertical space
+    auto outputLabelArea = outputDeviceArea.removeFromTop(25);
     outputDeviceLabel.setBounds(outputLabelArea.reduced(5, 0));
     
-    auto outputControlArea = outputDeviceArea.removeFromTop(30);
+    auto outputControlArea = outputDeviceArea.removeFromTop(35);
     outputDeviceComboBox.setBounds(outputControlArea.removeFromLeft(outputControlArea.getWidth() - 25).reduced(5, 0));
     
     // Status indicator circle next to output combo box
     outputStatusIndicatorBounds = outputControlArea.reduced(5);
     outputStatusIndicatorBounds = outputStatusIndicatorBounds.withSizeKeepingCentre(10, 10);
     
-    // CTA Button row - centered and prominent
-    auto buttonRow = headerArea.removeFromTop(35);
-    buttonRow.removeFromTop(5); // Add some spacing
+    // CTA Button row - centered and prominent with more breathing room
+    auto buttonRow = headerArea.removeFromTop(40);
+    buttonRow.removeFromTop(10); // Add more spacing for less compact feel
     
     // Center the CTA button
     auto buttonWidth = 200;
@@ -645,8 +731,8 @@ void MainComponent::toggleProcessing()
     }
         
         isProcessingActive = false;
-        processingToggleButton.setButtonText("Start Processing");
-        processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0099ff));
+        processingToggleButton.setButtonText("Start");
+        processingToggleButton.setToggleState(false, juce::dontSendNotification);
         inputDeviceComboBox.setEnabled(true);
         outputDeviceComboBox.setEnabled(true);
         
@@ -670,8 +756,8 @@ void MainComponent::toggleProcessing()
             audioInputManager->getAudioDeviceManager().addAudioCallback(this);
             
             isProcessingActive = true;
-            processingToggleButton.setButtonText("Stop Processing");
-            processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffcc3300));
+            processingToggleButton.setButtonText("Stop");
+            processingToggleButton.setToggleState(true, juce::dontSendNotification);
             inputDeviceComboBox.setEnabled(false);
             outputDeviceComboBox.setEnabled(false);
             
