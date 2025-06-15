@@ -1,0 +1,23 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.configurationWarnings": "enabled",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.compilerPath": "/usr/bin/clang++",
+    "C_Cpp.clang_format_style": "{ BasedOnStyle: LLVM, IndentWidth: 4, ColumnLimit: 120 }",
+    "files.associations": {
+        "*.h": "cpp",
+        "*.cpp": "cpp",
+        "*.jucer": "xml"
+    },
+    "files.exclude": {
+        "**/Builds/**": true,
+        "**/JuceLibraryCode/BinaryData*": true
+    },
+    "search.exclude": {
+        "**/Builds": true,
+        "**/JuceLibraryCode/BinaryData*": true
+    }
+} 

@@ -7,47 +7,141 @@
 #include "PluginChainComponent.h"
 
 //==============================================================================
-// Custom LookAndFeel for dark theme with sharp corners
+// Enhanced Modern Dark LookAndFeel with gradients and visual effects
 class DarkLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     DarkLookAndFeel()
     {
-        // Set dark color scheme
-        setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff1a1a1a));
-        setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff1a1a1a));
+        // Enhanced dark color scheme with modern colors
+        setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff0f0f0f));
+        setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff0f0f0f));
         
-        // ComboBox colors
-        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2d2d2d));
-        setColour(juce::ComboBox::textColourId, juce::Colours::white);
+        // ComboBox colors with modern styling
+        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e1e1e));
+        setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
         setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
-        setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff404040));
-        setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
+        setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
+        setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
         
         // PopupMenu colors
-        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff2d2d2d));
-        setColour(juce::PopupMenu::textColourId, juce::Colours::white);
-        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff404040));
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff1e1e1e));
+        setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe0e0e0));
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff00d4ff).withAlpha(0.3f));
         setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
     }
     
-    // Override to remove rounded corners from buttons and provide larger font for CTA
+    // Enhanced button drawing with gradients and effects
     void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
                              bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
     {
         auto bounds = button.getLocalBounds().toFloat();
         
-        auto baseColour = backgroundColour.withMultipliedSaturation(button.hasKeyboardFocus(true) ? 1.3f : 0.9f)
-                                         .withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f);
-
-        if (shouldDrawButtonAsDown || shouldDrawButtonAsHighlighted)
-            baseColour = baseColour.contrasting(shouldDrawButtonAsDown ? 0.2f : 0.05f);
-
-        g.setColour(baseColour);
-        g.fillRect(bounds); // Sharp corners instead of fillRoundedRectangle
+        // Check if this is the CTA button (processing toggle)
+        bool isCTAButton = button.getWidth() > 150;
         
-        g.setColour(button.findColour(juce::ComboBox::outlineColourId));
-        g.drawRect(bounds, 1.0f); // Sharp corners border
+        if (isCTAButton)
+        {
+            // Modern gradient CTA button
+            juce::ColourGradient gradient;
+            if (shouldDrawButtonAsDown)
+            {
+                gradient = juce::ColourGradient(juce::Colour(0xff0066cc), bounds.getX(), bounds.getY(),
+                                              juce::Colour(0xff004499), bounds.getX(), bounds.getBottom(), false);
+            }
+            else if (shouldDrawButtonAsHighlighted)
+            {
+                gradient = juce::ColourGradient(juce::Colour(0xff00aaff), bounds.getX(), bounds.getY(),
+                                              juce::Colour(0xff0088cc), bounds.getX(), bounds.getBottom(), false);
+            }
+            else
+            {
+                gradient = juce::ColourGradient(juce::Colour(0xff0099ff), bounds.getX(), bounds.getY(),
+                                              juce::Colour(0xff0066cc), bounds.getX(), bounds.getBottom(), false);
+            }
+            
+            g.setGradientFill(gradient);
+            g.fillRoundedRectangle(bounds, 4.0f);
+            
+            // Add subtle glow effect
+            if (shouldDrawButtonAsHighlighted)
+            {
+                g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+                g.drawRoundedRectangle(bounds.expanded(1), 5.0f, 1.0f);
+            }
+            
+            // Modern border
+            g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.6f));
+            g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+        }
+        else
+        {
+            // Regular buttons with subtle gradient
+            auto baseColour = backgroundColour.withMultipliedSaturation(button.hasKeyboardFocus(true) ? 1.3f : 0.9f)
+                                             .withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f);
+
+            if (shouldDrawButtonAsDown || shouldDrawButtonAsHighlighted)
+                baseColour = baseColour.contrasting(shouldDrawButtonAsDown ? 0.2f : 0.05f);
+
+            juce::ColourGradient gradient(baseColour.brighter(0.1f), bounds.getX(), bounds.getY(),
+                                        baseColour.darker(0.1f), bounds.getX(), bounds.getBottom(), false);
+            g.setGradientFill(gradient);
+            g.fillRoundedRectangle(bounds, 2.0f);
+            
+            g.setColour(button.findColour(juce::ComboBox::outlineColourId));
+            g.drawRoundedRectangle(bounds, 2.0f, 1.0f);
+        }
+    }
+    
+    // Enhanced ComboBox with modern styling
+    void drawComboBox(juce::Graphics& g, int width, int height, bool,
+                     int, int, int, int, juce::ComboBox& box) override
+    {
+        juce::Rectangle<float> boxBounds(0, 0, width, height);
+
+        // Gradient background
+        juce::ColourGradient gradient(juce::Colour(0xff2a2a2a), 0, 0,
+                                    juce::Colour(0xff1e1e1e), 0, height, false);
+        g.setGradientFill(gradient);
+        g.fillRoundedRectangle(boxBounds, 4.0f);
+
+        // Modern border with accent color
+        g.setColour(box.hasKeyboardFocus(true) ? juce::Colour(0xff00d4ff) : juce::Colour(0xff404040));
+        g.drawRoundedRectangle(boxBounds, 4.0f, 1.0f);
+
+        // Enhanced arrow with modern styling
+        juce::Rectangle<float> arrowZone(width - 30, 0, 20, height);
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(box.isEnabled() ? 0.9f : 0.3f));
+
+        auto arrowX = arrowZone.getCentreX();
+        auto arrowY = arrowZone.getCentreY() - 1;
+        
+        juce::Path path;
+        path.startNewSubPath(arrowX - 4.0f, arrowY - 2.0f);
+        path.lineTo(arrowX, arrowY + 2.0f);
+        path.lineTo(arrowX + 4.0f, arrowY - 2.0f);
+        
+        g.strokePath(path, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved));
+    }
+    
+    // Enhanced popup menu styling
+    void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override
+    {
+        juce::Rectangle<float> bounds(0, 0, width, height);
+        
+        // Gradient background
+        juce::ColourGradient gradient(juce::Colour(0xff2a2a2a), 0, 0,
+                                    juce::Colour(0xff1a1a1a), 0, height, false);
+        g.setGradientFill(gradient);
+        g.fillRoundedRectangle(bounds, 6.0f);
+        
+        // Modern border
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+        g.drawRoundedRectangle(bounds, 6.0f, 1.0f);
+        
+        // Subtle shadow effect
+        g.setColour(juce::Colours::black.withAlpha(0.3f));
+        g.drawRoundedRectangle(bounds.expanded(1), 7.0f, 1.0f);
     }
     
     // Override to provide larger font for buttons (especially CTA)
@@ -58,34 +152,6 @@ public:
             return juce::Font(16.0f, juce::Font::bold); // Larger, bold font for CTA
         else
             return juce::Font(14.0f); // Normal font for other buttons
-    }
-    
-    // Override to remove rounded corners from ComboBox
-    void drawComboBox(juce::Graphics& g, int width, int height, bool,
-                     int, int, int, int, juce::ComboBox& box) override
-    {
-        auto cornerSize = 0.0f; // Sharp corners
-        juce::Rectangle<int> boxBounds(0, 0, width, height);
-
-        g.setColour(box.findColour(juce::ComboBox::backgroundColourId));
-        g.fillRect(boxBounds); // Sharp corners
-
-        g.setColour(box.findColour(juce::ComboBox::outlineColourId));
-        g.drawRect(boxBounds, 1); // Sharp corners border
-
-        juce::Rectangle<int> arrowZone(width - 30, 0, 20, height);
-        g.setColour(box.findColour(juce::ComboBox::arrowColourId).withAlpha((box.isEnabled() ? 0.9f : 0.2f)));
-
-        // Draw arrow
-        auto arrowX = arrowZone.getCentreX();
-        auto arrowY = arrowZone.getCentreY() - 2;
-        
-        juce::Path path;
-        path.startNewSubPath(arrowX - 3.0f, arrowY);
-        path.lineTo(arrowX, arrowY + 3.0f);
-        path.lineTo(arrowX + 3.0f, arrowY);
-        
-        g.strokePath(path, juce::PathStrokeType(2.0f));
     }
 };
 
@@ -164,6 +230,9 @@ private:
     // Layout
     void setupLayout();
     void updateInputDeviceList();
+    
+    // Enhanced visual methods
+    void drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectangle<int>& bounds, float level);
     
     // Callbacks
     void toggleProcessing();
