@@ -251,6 +251,32 @@ void PluginChainComponent::onPluginError(int pluginIndex, const juce::String& er
     );
 }
 
+void PluginChainComponent::handleDraggedPlugin(int fromSlot, int toSlot)
+{
+    // Convert UI slot indices to actual plugin chain indices
+    // Only move if both slots have plugins or we're moving to an empty slot
+    if (fromSlot >= 0 && fromSlot < maxPluginSlots && 
+        toSlot >= 0 && toSlot < maxPluginSlots &&
+        fromSlot != toSlot)
+    {
+        // Check if source slot has a plugin
+        if (fromSlot < pluginHost.getNumPlugins())
+        {
+            // If target slot is beyond current plugins, we're appending
+            if (toSlot >= pluginHost.getNumPlugins())
+            {
+                // Move to end of chain
+                pluginHost.movePlugin(fromSlot, pluginHost.getNumPlugins() - 1);
+            }
+            else
+            {
+                // Move within existing chain
+                pluginHost.movePlugin(fromSlot, toSlot);
+            }
+        }
+    }
+}
+
 //==============================================================================
 // PluginSlot Implementation
 //==============================================================================
@@ -259,7 +285,6 @@ PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost& host, Pl
 {
     addAndMakeVisible(nameLabel);
     addAndMakeVisible(manufacturerLabel);
-    addAndMakeVisible(bypassButton);
     addAndMakeVisible(editButton);
     addAndMakeVisible(removeButton);
     
@@ -267,21 +292,18 @@ PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost& host, Pl
     nameLabel.setJustificationType(juce::Justification::centredTop);
     nameLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     nameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    nameLabel.setInterceptsMouseClicks(false, false); // Allow mouse events to pass through
+    
     manufacturerLabel.setJustificationType(juce::Justification::centredTop);
     manufacturerLabel.setFont(juce::Font(10.0f));
     manufacturerLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    manufacturerLabel.setInterceptsMouseClicks(false, false); // Allow mouse events to pass through
     
-    // Setup buttons with dark theme
-    bypassButton.setButtonText("Bypass");
+    // Setup buttons with modern styling
     editButton.setButtonText("Edit");
     removeButton.setButtonText("Remove");
     
     // Apply dark theme to buttons
-    bypassButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
-    bypassButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff404040));
-    bypassButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    bypassButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    
     editButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2d2d2d));
     editButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff404040));
     editButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
@@ -292,7 +314,6 @@ PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost& host, Pl
     removeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     removeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     
-    bypassButton.addListener(this);
     editButton.addListener(this);
     removeButton.addListener(this);
     
@@ -305,7 +326,6 @@ PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost& host, Pl
 
 PluginChainComponent::PluginSlot::~PluginSlot()
 {
-    bypassButton.removeListener(this);
     editButton.removeListener(this);
     removeButton.removeListener(this);
 }
@@ -314,13 +334,27 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds();
     
+    // Draw drag over highlight first (behind everything else)
+    if (isDragOver)
+    {
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+        g.fillRect(bounds);
+        
+        g.setColour(juce::Colour(0xff00d4ff));
+        g.drawRect(bounds, 3);
+    }
+    
     if (hasPlugin())
     {
         // Draw enhanced plugin background
         drawPluginBackground(g, bounds);
         
-        // Draw plugin icon area in top portion
+        // Draw status indicator at the top center
+        drawStatusIndicator(g, bounds);
+        
+        // Draw plugin icon area in top portion (below status indicator)
         auto iconArea = bounds.removeFromTop(bounds.getHeight() / 3).reduced(8);
+        iconArea.removeFromTop(12); // Make room for status indicator
         drawPluginIcon(g, iconArea);
         
         // Add subtle shadow effect when not bypassed
@@ -373,21 +407,26 @@ void PluginChainComponent::PluginSlot::resized()
     
     auto bounds = getLocalBounds().reduced(4);
     
-    // Reserve top area for icon (handled in paint method)
+    // Status indicator at top center
+    statusIndicatorBounds = juce::Rectangle<int>(bounds.getCentreX() - 6, bounds.getY() + 6, 12, 12);
+    
+    // Reserve top area for icon and status indicator
     bounds.removeFromTop(bounds.getHeight() / 3);
     
-    // Labels in middle area
-    auto labelArea = bounds.removeFromTop(bounds.getHeight() * 0.4f);
+    // Labels in middle area (more space now)
+    auto labelArea = bounds.removeFromTop(bounds.getHeight() * 0.5f);
     nameLabel.setBounds(labelArea.removeFromTop(labelArea.getHeight() / 2));
     manufacturerLabel.setBounds(labelArea);
     
-    // Buttons at bottom with better spacing
+    // Buttons at bottom with fixed height, stacked from bottom
     auto buttonArea = bounds.reduced(2);
-    auto buttonHeight = buttonArea.getHeight() / 3;
+    auto buttonHeight = 50;  // Taller buttons
+    auto buttonSpacing = 4;
     
-    bypassButton.setBounds(buttonArea.removeFromTop(buttonHeight).reduced(1));
-    editButton.setBounds(buttonArea.removeFromTop(buttonHeight).reduced(1));
-    removeButton.setBounds(buttonArea.reduced(1));
+    // Stack buttons from the bottom
+    removeButton.setBounds(buttonArea.removeFromBottom(buttonHeight).reduced(1));
+    buttonArea.removeFromBottom(buttonSpacing);
+    editButton.setBounds(buttonArea.removeFromBottom(buttonHeight).reduced(1));
 }
 
 void PluginChainComponent::PluginSlot::buttonClicked(juce::Button* button)
@@ -395,13 +434,7 @@ void PluginChainComponent::PluginSlot::buttonClicked(juce::Button* button)
     if (!hasPlugin())
         return;
     
-    if (button == &bypassButton)
-    {
-        bool currentlyBypassed = pluginHost.isPluginBypassed(slotIndex);
-        pluginHost.bypassPlugin(slotIndex, !currentlyBypassed);
-        updateBypassState();
-    }
-    else if (button == &editButton)
+    if (button == &editButton)
     {
         parentComponent.openPluginEditor(slotIndex);
     }
@@ -409,6 +442,159 @@ void PluginChainComponent::PluginSlot::buttonClicked(juce::Button* button)
     {
         pluginHost.unloadPlugin(slotIndex);
     }
+}
+
+void PluginChainComponent::PluginSlot::mouseDown(const juce::MouseEvent& event)
+{
+    if (!hasPlugin())
+    {
+        // Clicking on empty slot opens the plugin browser
+        parentComponent.showPluginBrowser();
+        return;
+    }
+    
+    // Store the mouse down position for later use in mouseDrag
+    mouseDownPosition = event.getPosition();
+}
+
+void PluginChainComponent::PluginSlot::mouseUp(const juce::MouseEvent& event)
+{
+    if (!hasPlugin())
+        return;
+    
+    // Only process click if we haven't moved much (not a drag)
+    if (event.getDistanceFromDragStart() < 5)
+    {
+        // Check if click is within the status indicator bounds
+        if (statusIndicatorBounds.contains(event.getPosition()))
+        {
+            bool currentlyBypassed = pluginHost.isPluginBypassed(slotIndex);
+            pluginHost.bypassPlugin(slotIndex, !currentlyBypassed);
+            updateBypassState();
+        }
+    }
+}
+
+void PluginChainComponent::PluginSlot::mouseDrag(const juce::MouseEvent& event)
+{
+    if (!hasPlugin())
+        return;
+    
+    // Don't start drag if we're over the status indicator
+    if (statusIndicatorBounds.contains(mouseDownPosition))
+        return;
+    
+    // Don't start drag if we're actually over a button (not just in the button area)
+    // Check if the buttons are visible and if we're actually over them
+    if (editButton.isVisible() && editButton.getBounds().contains(mouseDownPosition))
+        return;
+    if (removeButton.isVisible() && removeButton.getBounds().contains(mouseDownPosition))
+        return;
+    
+    // Start drag operation if we've moved far enough
+    if (event.getDistanceFromDragStart() > 15) // Increased threshold to avoid accidental drags
+    {
+        // Create drag description with plugin slot index
+        juce::var dragData;
+        dragData = slotIndex;
+        
+        // Create a visual representation of the plugin for dragging
+        auto dragImage = createComponentSnapshot(getLocalBounds());
+        
+        // Start the drag operation - the parentComponent is a DragAndDropContainer
+        parentComponent.startDragging(dragData, this, dragImage, true);
+    }
+}
+
+void PluginChainComponent::PluginSlot::mouseMove(const juce::MouseEvent& event)
+{
+    if (!hasPlugin())
+    {
+        // Show pointer cursor for empty slots to indicate they're clickable
+        setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        return;
+    }
+    
+    bool wasHovered = isStatusIndicatorHovered;
+    isStatusIndicatorHovered = statusIndicatorBounds.contains(event.getPosition());
+    
+    // Determine cursor based on what we're hovering over
+    if (isStatusIndicatorHovered)
+    {
+        setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    }
+    else if ((editButton.isVisible() && editButton.getBounds().contains(event.getPosition())) || 
+             (removeButton.isVisible() && removeButton.getBounds().contains(event.getPosition())))
+    {
+        setMouseCursor(juce::MouseCursor::PointingHandCursor); // Buttons are clickable
+    }
+    else
+    {
+        // Over the main plugin area - show drag cursor to indicate it's draggable
+        setMouseCursor(juce::MouseCursor::DraggingHandCursor);
+    }
+    
+    // Only repaint if hover state changed
+    if (wasHovered != isStatusIndicatorHovered)
+    {
+        repaint();
+    }
+}
+
+void PluginChainComponent::PluginSlot::mouseExit(const juce::MouseEvent& event)
+{
+    // Always reset cursor when exiting
+    setMouseCursor(juce::MouseCursor::NormalCursor);
+    
+    if (isStatusIndicatorHovered)
+    {
+        isStatusIndicatorHovered = false;
+        repaint();
+    }
+}
+
+//==============================================================================
+// Drag and Drop Target Implementation
+//==============================================================================
+bool PluginChainComponent::PluginSlot::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
+{
+    // We're interested in plugin slot drags (identified by integer slot index)
+    return dragSourceDetails.description.isInt();
+}
+
+void PluginChainComponent::PluginSlot::itemDragEnter(const SourceDetails& dragSourceDetails)
+{
+    isDragOver = true;
+    repaint();
+}
+
+void PluginChainComponent::PluginSlot::itemDragMove(const SourceDetails& dragSourceDetails)
+{
+    // Visual feedback is handled by isDragOver flag
+}
+
+void PluginChainComponent::PluginSlot::itemDragExit(const SourceDetails& dragSourceDetails)
+{
+    isDragOver = false;
+    repaint();
+}
+
+void PluginChainComponent::PluginSlot::itemDropped(const SourceDetails& dragSourceDetails)
+{
+    isDragOver = false;
+    
+    if (dragSourceDetails.description.isInt())
+    {
+        int fromSlotIndex = dragSourceDetails.description;
+        int toSlotIndex = slotIndex;
+        
+        if (fromSlotIndex != toSlotIndex)
+        {
+            parentComponent.handleDraggedPlugin(fromSlotIndex, toSlotIndex);
+        }
+    }
+    
+    repaint();
 }
 
 void PluginChainComponent::PluginSlot::setPluginInfo(const VST3PluginHost::PluginInfo& info)
@@ -424,7 +610,6 @@ void PluginChainComponent::PluginSlot::setPluginInfo(const VST3PluginHost::Plugi
     updateBypassState();
     
     // Show controls
-    bypassButton.setVisible(true);
     editButton.setVisible(true);
     removeButton.setVisible(true);
     
@@ -445,7 +630,6 @@ void PluginChainComponent::PluginSlot::clearPlugin()
     accentColour = juce::Colours::lightgrey;
     
     // Hide controls
-    bypassButton.setVisible(false);
     editButton.setVisible(false);
     removeButton.setVisible(false);
     
@@ -457,10 +641,7 @@ void PluginChainComponent::PluginSlot::updateBypassState()
     if (hasPlugin())
     {
         isBypassed = pluginHost.isPluginBypassed(slotIndex);
-        bypassButton.setButtonText(isBypassed ? "Bypassed" : "Active");
-        bypassButton.setColour(juce::TextButton::buttonColourId, 
-                              isBypassed ? juce::Colours::red : juce::Colours::green);
-        repaint();
+        repaint();  // Repaint to update the status indicator appearance
     }
 }
 
@@ -606,6 +787,66 @@ juce::Colour PluginChainComponent::PluginSlot::getHashBasedColour(const juce::St
     float hue = (hash % 360) / 360.0f;
     
     return juce::Colour::fromHSV(hue, saturation, brightness, 1.0f);
+}
+
+void PluginChainComponent::PluginSlot::drawStatusIndicator(juce::Graphics& g, const juce::Rectangle<int>& bounds)
+{
+    if (statusIndicatorBounds.isEmpty()) return;
+    
+    auto indicatorBounds = statusIndicatorBounds.toFloat();
+    
+    // Enhanced glow effect when hovered
+    if (isStatusIndicatorHovered)
+    {
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+        g.fillEllipse(indicatorBounds.expanded(6));
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.5f));
+        g.fillEllipse(indicatorBounds.expanded(3));
+    }
+    
+    // Draw glow effect when active
+    if (!isBypassed)
+    {
+        g.setColour(juce::Colour(0xff00ff88).withAlpha(0.2f));
+        g.fillEllipse(indicatorBounds.expanded(4));
+        g.setColour(juce::Colour(0xff00ff88).withAlpha(0.4f));
+        g.fillEllipse(indicatorBounds.expanded(2));
+    }
+    
+    // Main status indicator circle
+    juce::Colour mainColour = isBypassed ? juce::Colour(0xff444444) : juce::Colour(0xff00ff88);
+    if (isStatusIndicatorHovered)
+        mainColour = mainColour.brighter(0.3f);
+    
+    g.setColour(mainColour);
+    g.fillEllipse(indicatorBounds);
+    
+    // Draw inner pattern for active state
+    if (!isBypassed)
+    {
+        // Draw a bright center dot
+        auto centerBounds = indicatorBounds.reduced(3);
+        g.setColour(juce::Colour(0xffffffff).withAlpha(isStatusIndicatorHovered ? 1.0f : 0.9f));
+        g.fillEllipse(centerBounds);
+        
+        // Add pulsing ring effect
+        g.setColour(juce::Colour(0xff00ff88).withAlpha(0.8f));
+        g.drawEllipse(indicatorBounds.reduced(1), isStatusIndicatorHovered ? 2.0f : 1.5f);
+    }
+    else
+    {
+        // Draw X pattern for bypassed state
+        g.setColour(isStatusIndicatorHovered ? juce::Colour(0xffaaaaaa) : juce::Colour(0xff888888));
+        auto center = indicatorBounds.getCentre();
+        auto size = indicatorBounds.getWidth() * 0.3f;
+        auto lineWidth = isStatusIndicatorHovered ? 2.0f : 1.5f;
+        g.drawLine(center.x - size, center.y - size, center.x + size, center.y + size, lineWidth);
+        g.drawLine(center.x - size, center.y + size, center.x + size, center.y - size, lineWidth);
+    }
+    
+    // Outer border with hover effect
+    g.setColour(isStatusIndicatorHovered ? juce::Colour(0xff00d4ff) : juce::Colour(0xff222222));
+    g.drawEllipse(indicatorBounds, isStatusIndicatorHovered ? 1.5f : 1.0f);
 }
 
 //==============================================================================
