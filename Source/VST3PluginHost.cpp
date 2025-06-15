@@ -5,7 +5,9 @@ VST3PluginHost::VST3PluginHost()
 {
     // Initialize format manager with specific formats (avoid VST2)
     formatManager.addFormat(new juce::VST3PluginFormat());
+    #if JUCE_MAC
     formatManager.addFormat(new juce::AudioUnitPluginFormat());
+    #endif
     
     // Debug: Check what formats are available
     DBG("Format manager initialized with " + juce::String(formatManager.getNumFormats()) + " formats:");
@@ -499,13 +501,26 @@ void VST3PluginHost::scanVST3Plugins()
         // Manual verification scan - check what's actually in the directories
         DBG("=== Manual Directory Verification ===");
         
-        juce::File vstDir("/Library/Audio/Plug-Ins/VST3");
-        if (vstDir.exists() && vstDir.isDirectory())
+        // Get platform-specific VST3 directories
+        juce::Array<juce::File> vstDirectories;
+        
+        #if JUCE_MAC
+        vstDirectories.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
+        vstDirectories.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
+        #elif JUCE_WINDOWS
+        vstDirectories.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
+        vstDirectories.add(juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                              .getChildFile("VST3"));
+        #endif
+        
+        for (const auto& vstDir : vstDirectories)
         {
-            // VST3 plugins are bundles (directories), not files
-            juce::Array<juce::File> vstBundles;
-            vstDir.findChildFiles(vstBundles, juce::File::findDirectories, false, "*.vst3");
-            DBG("Directory: " + vstDir.getFullPathName() + " contains " + juce::String(vstBundles.size()) + " .vst3 bundles");
+            if (vstDir.exists() && vstDir.isDirectory())
+            {
+                // VST3 plugins are bundles (directories), not files
+                juce::Array<juce::File> vstBundles;
+                vstDir.findChildFiles(vstBundles, juce::File::findDirectories, false, "*.vst3");
+                DBG("Directory: " + vstDir.getFullPathName() + " contains " + juce::String(vstBundles.size()) + " .vst3 bundles");
             
             // Add the first few plugins manually to test
             int addedCount = 0;
@@ -515,10 +530,19 @@ void VST3PluginHost::scanVST3Plugins()
                 
                 DBG("  Found VST3 bundle: " + vstBundle.getFullPathName());
     
-                // Check if it's a valid VST3 bundle by looking for Contents/MacOS
+                // Check if it's a valid VST3 bundle by looking for platform-specific structure
                 auto contentsDir = vstBundle.getChildFile("Contents");
+                bool validBundle = false;
+                
+                #if JUCE_MAC
                 auto macOSDir = contentsDir.getChildFile("MacOS");
-                if (contentsDir.exists() && macOSDir.exists())
+                validBundle = contentsDir.exists() && macOSDir.exists();
+                #elif JUCE_WINDOWS
+                auto x64Dir = contentsDir.getChildFile("x86_64-win");
+                validBundle = contentsDir.exists() && x64Dir.exists();
+                #endif
+                
+                if (validBundle)
         {
                     DBG("    Valid VST3 bundle structure");
                     
@@ -577,14 +601,15 @@ void VST3PluginHost::scanVST3Plugins()
             }
             else
             {
-                    DBG("    Invalid VST3 bundle structure");
+                    DBG("    Invalid VST3 bundle structure for platform");
                 }
+                            }
+            }
+            else
+            {
+                DBG("VST3 directory doesn't exist: " + vstDir.getFullPathName());
             }
         }
-        else
-        {
-            DBG("VST3 directory doesn't exist: " + vstDir.getFullPathName());
-            }
         }
     else
     {
