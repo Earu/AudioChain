@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="AudioChain" name="AudioChain" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1"
+              cppLanguageStandard="17">
+  <MAINGROUP id="AudioChain" name="AudioChain">
+    <GROUP id="Source" name="Source">
+      <FILE id="MainComponent.h" name="MainComponent.h" compile="0" resource="0"
+            file="Source/MainComponent.h"/>
+      <FILE id="MainComponent.cpp" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
+      <FILE id="Main.cpp" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="VST3PluginHost.h" name="VST3PluginHost.h" compile="0" resource="0"
+            file="Source/VST3PluginHost.h"/>
+      <FILE id="VST3PluginHost.cpp" name="VST3PluginHost.cpp" compile="1"
+            resource="0" file="Source/VST3PluginHost.cpp"/>
+      <FILE id="AudioProcessor.h" name="AudioProcessor.h" compile="0" resource="0"
+            file="Source/AudioProcessor.h"/>
+      <FILE id="AudioProcessor.cpp" name="AudioProcessor.cpp" compile="1"
+            resource="0" file="Source/AudioProcessor.cpp"/>
+      <FILE id="PluginChainComponent.h" name="PluginChainComponent.h" compile="0"
+            resource="0" file="Source/PluginChainComponent.h"/>
+      <FILE id="PluginChainComponent.cpp" name="PluginChainComponent.cpp"
+            compile="1" resource="0" file="Source/PluginChainComponent.cpp"/>
+      <FILE id="AudioInputManager.h" name="AudioInputManager.h" compile="0"
+            resource="0" file="Source/AudioInputManager.h"/>
+      <FILE id="AudioInputManager.cpp" name="AudioInputManager.cpp" compile="1"
+            resource="0" file="Source/AudioInputManager.cpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
+  <LIVE_SETTINGS>
+    <OSX/>
+  </LIVE_SETTINGS>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="AudioChain" plistPreprocessorDefinitions="&lt;key&gt;NSMicrophoneUsageDescription&lt;/key&gt;&#10;&lt;string&gt;AudioChain needs microphone access to process audio input through VST plugins in real-time.&lt;/string&gt;"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="AudioChain" plistPreprocessorDefinitions="&lt;key&gt;NSMicrophoneUsageDescription&lt;/key&gt;&#10;&lt;string&gt;AudioChain needs microphone access to process audio input through VST plugins in real-time.&lt;/string&gt;"/>
+      </CONFIGURATIONS>
+      <PLISTTOAPPEND/>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path=""/>
+        <MODULEPATH id="juce_audio_devices" path=""/>
+        <MODULEPATH id="juce_audio_formats" path=""/>
+        <MODULEPATH id="juce_audio_processors" path=""/>
+        <MODULEPATH id="juce_audio_utils" path=""/>
+        <MODULEPATH id="juce_core" path=""/>
+        <MODULEPATH id="juce_data_structures" path=""/>
+        <MODULEPATH id="juce_dsp" path=""/>
+        <MODULEPATH id="juce_events" path=""/>
+        <MODULEPATH id="juce_graphics" path=""/>
+        <MODULEPATH id="juce_gui_basics" path=""/>
+        <MODULEPATH id="juce_gui_extra" path=""/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+  </EXPORTFORMATS>
+</JUCERPROJECT>

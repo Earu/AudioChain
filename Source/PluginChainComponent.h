@@ -1,0 +1,164 @@
+#pragma once
+
+#include <JuceHeader.h>
+#include "VST3PluginHost.h"
+
+//==============================================================================
+/**
+    Plugin Chain Component - UI for managing the VST3 plugin chain
+    
+    Features:
+    - Visual representation of plugin chain
+    - Drag and drop plugin ordering
+    - Plugin controls (bypass, remove, edit)
+    - Plugin browser and loading
+    - Real-time level meters
+    - Spectrum analyzer
+*/
+class PluginChainComponent : public juce::Component,
+                            public juce::DragAndDropContainer,
+                            public juce::Timer
+{
+public:
+    explicit PluginChainComponent(VST3PluginHost& pluginHost);
+    ~PluginChainComponent() override;
+    
+    // Component overrides
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+    
+    // Timer callback for updates
+    void timerCallback() override;
+    
+private:
+    //==============================================================================
+    class PluginSlot : public juce::Component,
+                       public juce::Button::Listener
+    {
+    public:
+        PluginSlot(int index, VST3PluginHost& host, PluginChainComponent& parent);
+        ~PluginSlot() override;
+        
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+        void buttonClicked(juce::Button* button) override;
+        
+        void setPluginInfo(const VST3PluginHost::PluginInfo& info);
+        void clearPlugin();
+        void updateBypassState();
+        
+        int getIndex() const { return slotIndex; }
+        bool hasPlugin() const { return !pluginInfo.name.isEmpty(); }
+        
+    private:
+        int slotIndex;
+        VST3PluginHost& pluginHost;
+        PluginChainComponent& parentComponent;
+        
+        VST3PluginHost::PluginInfo pluginInfo;
+        
+        // UI Elements
+        juce::Label nameLabel;
+        juce::Label manufacturerLabel;
+        juce::TextButton bypassButton;
+        juce::TextButton editButton;
+        juce::TextButton removeButton;
+        
+        // Visual elements
+        bool isBypassed = false;
+        juce::Colour slotColour;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginSlot)
+    };
+    
+    //==============================================================================
+    class PluginBrowser : public juce::Component,
+                         public juce::ListBoxModel,
+                         public juce::Button::Listener
+    {
+    public:
+        explicit PluginBrowser(VST3PluginHost& host);
+        ~PluginBrowser() override;
+        
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+        
+        // ListBoxModel overrides
+        int getNumRows() override;
+        void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
+        void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override;
+        
+        // Button::Listener override
+        void buttonClicked(juce::Button* button) override;
+        
+        void refreshPluginList();
+        void setVisible(bool shouldBeVisible) override;
+        
+    private:
+        VST3PluginHost& pluginHost;
+        
+        juce::ListBox pluginList;
+        juce::TextButton refreshButton;
+        juce::TextButton closeButton;
+        juce::Label headerLabel;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginBrowser)
+    };
+    
+    //==============================================================================
+    class LevelMeter : public juce::Component
+    {
+    public:
+        LevelMeter();
+        ~LevelMeter() override;
+        
+        void paint(juce::Graphics& g) override;
+        void setLevel(float newLevel);
+        
+    private:
+        std::atomic<float> level{0.0f};
+        juce::LinearSmoothedValue<float> smoothedLevel;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LevelMeter)
+    };
+    
+    //==============================================================================
+    VST3PluginHost& pluginHost;
+    
+    // Plugin slots
+    static constexpr int maxPluginSlots = 8;
+    std::array<std::unique_ptr<PluginSlot>, maxPluginSlots> pluginSlots;
+    
+    // UI Components
+    std::unique_ptr<PluginBrowser> pluginBrowser;
+    juce::TextButton addPluginButton;
+    juce::TextButton clearAllButton;
+    juce::Label chainLabel;
+    
+    // Metering
+    std::array<std::unique_ptr<LevelMeter>, 2> levelMeters; // L/R channels
+    
+    // Layout
+    juce::Rectangle<int> chainArea;
+    juce::Rectangle<int> controlArea;
+    juce::Rectangle<int> meterArea;
+    
+    // Plugin editor windows
+    juce::OwnedArray<juce::DocumentWindow> editorWindows;
+    
+    // Drag and drop
+    void handleDraggedPlugin(int fromSlot, int toSlot);
+    
+    // Plugin management
+    void refreshPluginChain();
+    void showPluginBrowser();
+    void hidePluginBrowser();
+    void openPluginEditor(int slotIndex);
+    void closePluginEditor(int slotIndex);
+    
+    // Callbacks
+    void onPluginChainChanged();
+    void onPluginError(int pluginIndex, const juce::String& error);
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginChainComponent)
+}; 
