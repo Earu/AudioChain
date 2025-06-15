@@ -1,6 +1,12 @@
 JuceLibraryCode/*
-Builds/MacOSX/build/*
 **/.DS_Store
+
+# Ignore everything in Builds directory
+Builds/*
+
+# But keep the macOS Info-App.plist file
+!Builds/MacOSX/
+!Builds/MacOSX/Info-App.plist
 
 # Visual Studio
 Builds/VisualStudio2022/.vs/
