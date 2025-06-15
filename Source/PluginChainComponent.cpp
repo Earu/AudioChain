@@ -1070,19 +1070,22 @@ void PluginChainComponent::PluginBrowser::setVisible(bool shouldBeVisible)
 
 void PluginChainComponent::PluginBrowser::showAddPathDialog()
 {
-    auto chooser = std::make_unique<juce::FileChooser>("Select VST3 Directory", juce::File::getCurrentWorkingDirectory());
+    fileChooser = std::make_unique<juce::FileChooser>("Select VST3 Directory", 
+                                                      juce::File::getSpecialLocation(juce::File::userHomeDirectory));
     
-    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-                        [this](const juce::FileChooser& fc)
-                        {
-                            auto result = fc.getResult();
-                            if (result.exists() && userConfig != nullptr)
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                            [this](const juce::FileChooser& fc)
                             {
-                                userConfig->addVSTSearchPath(result.getFullPathName());
-                                refreshSearchPathsList();
-                                refreshPluginList();
-                            }
-                        });
+                                auto result = fc.getResult();
+                                if (result.exists() && userConfig != nullptr)
+                                {
+                                    userConfig->addVSTSearchPath(result.getFullPathName());
+                                    refreshSearchPathsList();
+                                    refreshPluginList();
+                                }
+                                // Clear the file chooser after use
+                                fileChooser.reset();
+                            });
 }
 
 void PluginChainComponent::PluginBrowser::removeSelectedPath()
