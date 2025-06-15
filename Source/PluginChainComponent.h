@@ -67,6 +67,17 @@ private:
         // Visual elements
         bool isBypassed = false;
         juce::Colour slotColour;
+        juce::Colour primaryColour;
+        juce::Colour secondaryColour;
+        juce::Colour accentColour;
+        
+        // Visual enhancement methods
+        void generatePluginTheme();
+        void drawPluginBackground(juce::Graphics& g, const juce::Rectangle<int>& bounds);
+        void drawProceduralPattern(juce::Graphics& g, const juce::Rectangle<int>& bounds);
+        void drawPluginIcon(juce::Graphics& g, const juce::Rectangle<int>& iconArea);
+        juce::Colour getHashBasedColour(const juce::String& text, float saturation = 0.7f, float brightness = 0.8f);
+        juce::Colour getPluginTypeColour(bool isInstrument);
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginSlot)
     };
@@ -144,7 +155,32 @@ private:
     juce::Rectangle<int> meterArea;
     
     // Plugin editor windows
-    juce::OwnedArray<juce::DocumentWindow> editorWindows;
+    class PluginEditorWindow : public juce::DocumentWindow
+    {
+    public:
+        PluginEditorWindow(const juce::String& title, int pluginIndex, PluginChainComponent& parent)
+            : DocumentWindow(title, juce::Colours::darkgrey, DocumentWindow::allButtons),
+              slotIndex(pluginIndex), parentComponent(parent)
+        {
+            setUsingNativeTitleBar(true);
+            setResizable(true, true);
+        }
+        
+        void closeButtonPressed() override
+        {
+            parentComponent.onEditorWindowClosed(slotIndex);
+        }
+        
+        int getSlotIndex() const { return slotIndex; }
+        
+    private:
+        int slotIndex;
+        PluginChainComponent& parentComponent;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditorWindow)
+    };
+    
+    juce::OwnedArray<PluginEditorWindow> editorWindows;
     
     // Drag and drop
     void handleDraggedPlugin(int fromSlot, int toSlot);
@@ -155,6 +191,7 @@ private:
     void hidePluginBrowser();
     void openPluginEditor(int slotIndex);
     void closePluginEditor(int slotIndex);
+    void onEditorWindowClosed(int slotIndex);
     
     // Callbacks
     void onPluginChainChanged();

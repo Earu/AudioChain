@@ -3,14 +3,23 @@
 //==============================================================================
 VST3PluginHost::VST3PluginHost()
 {
-    // Initialize format manager with VST3 support
-    formatManager.addDefaultFormats();
+    // Initialize format manager with specific formats (avoid VST2)
+    formatManager.addFormat(new juce::VST3PluginFormat());
+    formatManager.addFormat(new juce::AudioUnitPluginFormat());
     
-    // The default formats include VST3, AU, VST2, etc.
-    // No need to manually add VST format as it's included in addDefaultFormats()
+    // Debug: Check what formats are available
+    DBG("Format manager initialized with " + juce::String(formatManager.getNumFormats()) + " formats:");
+    for (int i = 0; i < formatManager.getNumFormats(); ++i)
+    {
+        auto* format = formatManager.getFormat(i);
+        if (format != nullptr)
+        {
+            DBG("  Format " + juce::String(i) + ": " + format->getName());
+        }
+    }
     
-    // Scan for plugins on initialization
-    scanForPlugins();
+    // Don't scan on initialization to prevent crashes
+    // scanForPlugins(); // Call this manually when needed
 }
 
 VST3PluginHost::~VST3PluginHost()
@@ -106,17 +115,27 @@ bool VST3PluginHost::loadPlugin(const PluginInfo& pluginInfo)
 {
     juce::ScopedLock lock(pluginLock);
     
-    // Create plugin description
+    // Use the stored JUCE description if available, otherwise create one manually
     juce::PluginDescription description;
-    description.name = pluginInfo.name;
-    description.manufacturerName = pluginInfo.manufacturer;
-    description.version = pluginInfo.version;
-    description.pluginFormatName = pluginInfo.pluginFormatName;
-    description.fileOrIdentifier = pluginInfo.fileOrIdentifier;
-    description.numInputChannels = pluginInfo.numInputChannels;
-    description.numOutputChannels = pluginInfo.numOutputChannels;
-    description.isInstrument = pluginInfo.isInstrument;
-    description.hasSharedContainer = false;
+    if (pluginInfo.hasJuceDescription)
+    {
+        description = pluginInfo.juceDescription;
+        DBG("Using stored JUCE description for: " + pluginInfo.name);
+    }
+    else
+    {
+        // Fallback: create description manually
+        description.name = pluginInfo.name;
+        description.manufacturerName = pluginInfo.manufacturer;
+        description.version = pluginInfo.version;
+        description.pluginFormatName = pluginInfo.pluginFormatName;
+        description.fileOrIdentifier = pluginInfo.fileOrIdentifier;
+        description.numInputChannels = pluginInfo.numInputChannels;
+        description.numOutputChannels = pluginInfo.numOutputChannels;
+        description.isInstrument = pluginInfo.isInstrument;
+        description.hasSharedContainer = false;
+        DBG("Using manual description for: " + pluginInfo.name);
+    }
     
     // Create plugin instance
     juce::String errorMessage;
@@ -126,6 +145,11 @@ bool VST3PluginHost::loadPlugin(const PluginInfo& pluginInfo)
     
     if (!processor)
     {
+        DBG("Failed to create plugin instance for: " + pluginInfo.name);
+        DBG("Error message: " + errorMessage);
+        DBG("Plugin path: " + pluginInfo.fileOrIdentifier);
+        DBG("Plugin format: " + pluginInfo.pluginFormatName);
+        
         if (onPluginError)
         {
             onPluginError(-1, "Failed to load plugin: " + errorMessage);
@@ -452,80 +476,123 @@ void VST3PluginHost::scanVST3Plugins()
     // Clear existing plugins
     availablePlugins.clear();
     
-    // Create a known plugin list for discovered plugins
-    juce::KnownPluginList pluginList;
+    DBG("=== Starting Simple VST3 Plugin Scan ===");
     
-    // Debug: Print available formats
-    DBG("Number of formats available: " + juce::String(formatManager.getNumFormats()));
+    // For now, let's manually add some known VST3 plugins to test the system
+    // This avoids the scanning crash while we debug
     
-    // Get all available plugin formats from the format manager
+    // Check if we have VST3 format available
+    juce::AudioPluginFormat* vst3Format = nullptr;
     for (int i = 0; i < formatManager.getNumFormats(); ++i)
     {
         auto* format = formatManager.getFormat(i);
-        if (format != nullptr)
+        if (format != nullptr && format->getName().containsIgnoreCase("VST3"))
         {
-            DBG("Scanning format: " + format->getName());
-            
-            // Get default search paths for this format
-            juce::FileSearchPath searchPaths = format->getDefaultLocationsToSearch();
-            
-            // Debug: Print search paths
-            for (int pathIdx = 0; pathIdx < searchPaths.getNumPaths(); ++pathIdx)
-            {
-                DBG("Search path: " + searchPaths[pathIdx].getFullPathName());
-            }
-            
-            // Scan for plugins of this format
-            juce::PluginDirectoryScanner scanner(pluginList, *format, searchPaths, true, juce::File());
-            
-            juce::String pluginBeingScanned;
-            while (scanner.scanNextFile(false, pluginBeingScanned))
-            {
-                DBG("Scanning: " + pluginBeingScanned);
-            }
+            vst3Format = format;
+            DBG("Found VST3 format: " + format->getName());
+            break;
         }
     }
     
-    DBG("Total plugins found: " + juce::String(pluginList.getNumTypes()));
-    
-    // Add all found plugins to our available plugins list
-    for (int j = 0; j < pluginList.getNumTypes(); ++j)
+    if (vst3Format != nullptr)
     {
-        auto* description = pluginList.getType(j);
-        if (description != nullptr)
+        // Manual verification scan - check what's actually in the directories
+        DBG("=== Manual Directory Verification ===");
+        
+        juce::File vstDir("/Library/Audio/Plug-Ins/VST3");
+        if (vstDir.exists() && vstDir.isDirectory())
         {
-            DBG("Adding plugin: " + description->name + " (" + description->pluginFormatName + ")");
-            addPluginToList(*description);
+            // VST3 plugins are bundles (directories), not files
+            juce::Array<juce::File> vstBundles;
+            vstDir.findChildFiles(vstBundles, juce::File::findDirectories, false, "*.vst3");
+            DBG("Directory: " + vstDir.getFullPathName() + " contains " + juce::String(vstBundles.size()) + " .vst3 bundles");
+            
+            // Add the first few plugins manually to test
+            int addedCount = 0;
+            for (const auto& vstBundle : vstBundles)
+            {
+                if (addedCount >= 3) break; // Limit to 3 plugins for testing
+                
+                DBG("  Found VST3 bundle: " + vstBundle.getFullPathName());
+                
+                // Check if it's a valid VST3 bundle by looking for Contents/MacOS
+                auto contentsDir = vstBundle.getChildFile("Contents");
+                auto macOSDir = contentsDir.getChildFile("MacOS");
+                if (contentsDir.exists() && macOSDir.exists())
+                {
+                    DBG("    Valid VST3 bundle structure");
+                    
+                    // Try to get proper plugin description using JUCE
+                    juce::OwnedArray<juce::PluginDescription> descriptions;
+                    vst3Format->findAllTypesForFile(descriptions, vstBundle.getFullPathName());
+                    
+                    bool foundDescription = descriptions.size() > 0;
+                    if (foundDescription)
+                    {
+                        DBG("    Successfully read plugin description");
+                    }
+                    else
+                    {
+                        DBG("    Could not read plugin description, using fallback");
+                    }
+                    
+                    // Create plugin info from description or fallback
+                    PluginInfo info;
+                    if (foundDescription)
+                    {
+                        auto* description = descriptions[0]; // Use first description
+                        info.name = description->name.isNotEmpty() ? description->name : vstBundle.getFileNameWithoutExtension();
+                        info.manufacturer = description->manufacturerName.isNotEmpty() ? description->manufacturerName : "Unknown";
+                        info.version = description->version.isNotEmpty() ? description->version : "1.0";
+                        info.pluginFormatName = description->pluginFormatName;
+                        info.fileOrIdentifier = description->fileOrIdentifier;
+                        info.numInputChannels = description->numInputChannels;
+                        info.numOutputChannels = description->numOutputChannels;
+                        info.isInstrument = description->isInstrument;
+                        info.hasEditor = description->hasSharedContainer;
+                        
+                        // Store the complete JUCE description for accurate loading
+                        info.juceDescription = *description;
+                        info.hasJuceDescription = true;
+                    }
+                    else
+                    {
+                        // Fallback to basic info
+                        info.name = vstBundle.getFileNameWithoutExtension();
+                        info.manufacturer = "Unknown";
+                        info.version = "1.0";
+                        info.pluginFormatName = "VST3";
+                        info.fileOrIdentifier = vstBundle.getFullPathName();
+                        info.numInputChannels = 2;
+                        info.numOutputChannels = 2;
+                        info.isInstrument = false;
+                        info.hasEditor = true;
+                        info.hasJuceDescription = false;
+                    }
+                    
+                    availablePlugins.add(info);
+                    addedCount++;
+                    
+                    DBG("    Added plugin: " + info.name + " by " + info.manufacturer);
+                }
+                else
+                {
+                    DBG("    Invalid VST3 bundle structure");
+                }
+            }
+        }
+        else
+        {
+            DBG("VST3 directory doesn't exist: " + vstDir.getFullPathName());
         }
     }
-    
-    DBG("Available plugins in list: " + juce::String(availablePlugins.size()));
-    
-    // If no plugins found, manually check common VST3 locations
-    if (availablePlugins.size() == 0)
+    else
     {
-        DBG("No plugins found with automatic scanning, checking manual locations...");
-        
-        juce::Array<juce::File> manualLocations;
-        manualLocations.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
-        manualLocations.add(juce::File(juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("Library/Audio/Plug-Ins/VST3")));
-        manualLocations.add(juce::File("/System/Library/Audio/Plug-Ins/VST3"));
-        
-        for (auto& location : manualLocations)
-        {
-            if (location.exists())
-            {
-                DBG("Checking manual location: " + location.getFullPathName());
-                juce::Array<juce::File> vstFiles;
-                location.findChildFiles(vstFiles, juce::File::findFiles, true, "*.vst3");
-                DBG("Found " + juce::String(vstFiles.size()) + " VST3 files in " + location.getFullPathName());
-            }
-            else
-            {
-                DBG("Manual location doesn't exist: " + location.getFullPathName());
-            }
-        }
+        DBG("ERROR: VST3 format not found in format manager!");
     }
+    
+    DBG("Final available plugins count: " + juce::String(availablePlugins.size()));
+    DBG("=== Simple VST3 Plugin Scan Complete ===");
 }
 
 void VST3PluginHost::addPluginToList(const juce::PluginDescription& description)

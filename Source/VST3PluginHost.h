@@ -28,6 +28,10 @@ public:
         int numOutputChannels = 0;
         bool isInstrument = false;
         bool hasEditor = false;
+        
+        // Store the complete JUCE plugin description for accurate loading
+        juce::PluginDescription juceDescription;
+        bool hasJuceDescription = false;
     };
     
     //==============================================================================

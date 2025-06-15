@@ -39,53 +39,56 @@ MainComponent::MainComponent()
     addAndMakeVisible(*pluginChainComponent);
     DBG("UI components added successfully");
     
-    // Set basic text for components
+    // Set basic text for components with modern styling
     DBG("Setting inputDeviceLabel text and properties...");
     inputDeviceLabel.setText("Audio Input Device:", juce::dontSendNotification);
-    inputDeviceLabel.setFont(juce::Font(14.0f));
+    inputDeviceLabel.setFont(juce::Font(14.0f, juce::Font::bold));
+    inputDeviceLabel.setColour(juce::Label::textColourId, juce::Colour(0xffe0e0e0));
     DBG("inputDeviceLabel configured successfully");
     
     DBG("Setting outputDeviceLabel text and properties...");
     outputDeviceLabel.setText("Audio Output Device:", juce::dontSendNotification);
-    outputDeviceLabel.setFont(juce::Font(14.0f));
+    outputDeviceLabel.setFont(juce::Font(14.0f, juce::Font::bold));
+    outputDeviceLabel.setColour(juce::Label::textColourId, juce::Colour(0xffe0e0e0));
     DBG("outputDeviceLabel configured successfully");
     
     DBG("Setting leftLevelLabel text and properties...");
     leftLevelLabel.setText("L", juce::dontSendNotification);
-    leftLevelLabel.setFont(juce::Font(14.0f, juce::Font::FontStyleFlags::bold));
+    leftLevelLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     leftLevelLabel.setJustificationType(juce::Justification::centred);
+    leftLevelLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00d4ff));
     DBG("leftLevelLabel configured successfully");
     
     DBG("Setting rightLevelLabel text and properties...");
     rightLevelLabel.setText("R", juce::dontSendNotification);
-    rightLevelLabel.setFont(juce::Font(14.0f, juce::Font::FontStyleFlags::bold));
+    rightLevelLabel.setFont(juce::Font(12.0f, juce::Font::bold));
     rightLevelLabel.setJustificationType(juce::Justification::centred);
+    rightLevelLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00d4ff));
     DBG("rightLevelLabel configured successfully");
     
-    // Configure buttons with dark theme
+    // Configure buttons with modern styling
     
-    // Apply modern CTA styling to processing toggle button
+    // Enhanced CTA styling for processing toggle button
     processingToggleButton.setButtonText("Start Processing");
-    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff007acc)); // Modern blue CTA
-    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff005a99)); // Darker blue when pressed
+    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0099ff));
+    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff0066cc));
     processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    // Note: Font will be set via LookAndFeel override for buttons
     
-    // Configure combo boxes with dark theme
-    inputDeviceComboBox.setTextWhenNothingSelected("Select an input device...");
-    inputDeviceComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2d2d2d));
-    inputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    // Enhanced combo boxes with modern dark theme
+    inputDeviceComboBox.setTextWhenNothingSelected("Select input device...");
+    inputDeviceComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e1e1e));
+    inputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
     inputDeviceComboBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
-    inputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff404040));
-    inputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
+    inputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
+    inputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
     
-    outputDeviceComboBox.setTextWhenNothingSelected("Select an output device...");
-    outputDeviceComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff2d2d2d));
-    outputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    outputDeviceComboBox.setTextWhenNothingSelected("Select output device...");
+    outputDeviceComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e1e1e));
+    outputDeviceComboBox.setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
     outputDeviceComboBox.setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
-    outputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff404040));
-    outputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
+    outputDeviceComboBox.setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
+    outputDeviceComboBox.setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
     
     // Apply dark theme to labels
     inputDeviceLabel.setColour(juce::Label::textColourId, juce::Colours::white);
@@ -299,126 +302,176 @@ void MainComponent::audioDeviceStopped()
 //==============================================================================
 void MainComponent::paint(juce::Graphics& g)
 {
-    // Dark theme background
-    g.fillAll(juce::Colour(0xff1a1a1a));
+    auto bounds = getLocalBounds();
     
-    // Draw header background - slightly lighter dark
+    // Modern gradient background
+    juce::ColourGradient backgroundGradient(juce::Colour(0xff0a0a0a), 0, 0,
+                                          juce::Colour(0xff1a1a1a), 0, getHeight(), false);
+    g.setGradientFill(backgroundGradient);
+    g.fillRect(bounds);
+    
+    // Enhanced header with modern gradient and visual effects
     juce::Rectangle<int> headerArea(0, 0, getWidth(), 90);
-    g.setColour(juce::Colour(0xff2d2d2d));
+    
+    // Header gradient background
+    juce::ColourGradient headerGradient(juce::Colour(0xff2a2a2a), 0, headerArea.getY(),
+                                       juce::Colour(0xff1e1e1e), 0, headerArea.getBottom(), false);
+    g.setGradientFill(headerGradient);
     g.fillRect(headerArea);
     
-    // Draw header border
-    g.setColour(juce::Colour(0xff404040));
-    g.drawLine(0, 90, getWidth(), 90, 1);
+    // Modern header border with accent color
+    g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+    g.drawLine(0, 90, getWidth(), 90, 2);
     
-    // Draw status indicator circles
+    // Add subtle top highlight
+    g.setColour(juce::Colour(0xff404040).withAlpha(0.5f));
+    g.drawLine(0, 0, getWidth(), 0, 1);
+    
+    // Enhanced status indicators with glow effects
     if (!inputStatusIndicatorBounds.isEmpty())
     {
-        g.setColour(isProcessingActive ? juce::Colours::green : juce::Colours::red);
-        g.fillEllipse(inputStatusIndicatorBounds.toFloat());
+        auto indicatorBounds = inputStatusIndicatorBounds.toFloat();
         
-        // Add a subtle border
+        // Glow effect
+        if (isProcessingActive)
+        {
+            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.3f));
+            g.fillEllipse(indicatorBounds.expanded(3));
+            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.6f));
+            g.fillEllipse(indicatorBounds.expanded(1));
+        }
+        
+        // Main indicator
+        g.setColour(isProcessingActive ? juce::Colour(0xff00ff88) : juce::Colour(0xff666666));
+        g.fillEllipse(indicatorBounds);
+        
+        // Subtle border
         g.setColour(juce::Colour(0xff404040));
-        g.drawEllipse(inputStatusIndicatorBounds.toFloat(), 1.0f);
+        g.drawEllipse(indicatorBounds, 1.0f);
     }
     
     if (!outputStatusIndicatorBounds.isEmpty())
     {
-        g.setColour(isProcessingActive ? juce::Colours::green : juce::Colours::red);
-        g.fillEllipse(outputStatusIndicatorBounds.toFloat());
+        auto indicatorBounds = outputStatusIndicatorBounds.toFloat();
         
-        // Add a subtle border
+        // Glow effect
+        if (isProcessingActive)
+        {
+            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.3f));
+            g.fillEllipse(indicatorBounds.expanded(3));
+            g.setColour(juce::Colour(0xff00ff88).withAlpha(0.6f));
+            g.fillEllipse(indicatorBounds.expanded(1));
+        }
+        
+        // Main indicator
+        g.setColour(isProcessingActive ? juce::Colour(0xff00ff88) : juce::Colour(0xff666666));
+        g.fillEllipse(indicatorBounds);
+        
+        // Subtle border
         g.setColour(juce::Colour(0xff404040));
-        g.drawEllipse(outputStatusIndicatorBounds.toFloat(), 1.0f);
+        g.drawEllipse(indicatorBounds, 1.0f);
     }
     
-    // Draw vertical level meters background
-    g.setColour(juce::Colours::black);
-    g.fillRect(leftMeterBounds);
-    g.fillRect(rightMeterBounds);
+    // Enhanced level meters with modern styling
+    drawEnhancedLevelMeter(g, leftMeterBounds, audioInputManager ? audioInputManager->getInputLevel(0) : 0.0f);
+    drawEnhancedLevelMeter(g, rightMeterBounds, audioInputManager ? audioInputManager->getInputLevel(1) : 0.0f);
+}
+
+void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectangle<int>& bounds, float level)
+{
+    if (bounds.isEmpty()) return;
     
-    // Draw level meter outlines - sharp corners, no rounding
+    auto meterBounds = bounds.toFloat();
+    
+    // Modern meter background with gradient
+    juce::ColourGradient bgGradient(juce::Colour(0xff0a0a0a), meterBounds.getX(), meterBounds.getY(),
+                                   juce::Colour(0xff1a1a1a), meterBounds.getX(), meterBounds.getBottom(), false);
+    g.setGradientFill(bgGradient);
+    g.fillRoundedRectangle(meterBounds, 3.0f);
+    
+    // Modern border
     g.setColour(juce::Colour(0xff404040));
-    g.drawRect(leftMeterBounds, 1);
-    g.drawRect(rightMeterBounds, 1);
+    g.drawRoundedRectangle(meterBounds, 3.0f, 1.0f);
     
-    // Draw input level meters
-    if (audioInputManager && isProcessingActive)
+    if (isProcessingActive && level > 0.0f)
     {
-        float leftLevel = audioInputManager->getInputLevel(0);
-        float rightLevel = audioInputManager->getInputLevel(1);
+        // Convert to dB and normalize
+        float levelDb = juce::Decibels::gainToDecibels(level, -60.0f);
+        float normalizedLevel = juce::jmap(levelDb, -60.0f, 0.0f, 0.0f, 1.0f);
+        normalizedLevel = juce::jlimit(0.0f, 1.0f, normalizedLevel);
         
-        // Convert to dB and normalize to 0-1 range (-60dB to 0dB)
-        float leftDb = juce::Decibels::gainToDecibels(leftLevel, -60.0f);
-        float rightDb = juce::Decibels::gainToDecibels(rightLevel, -60.0f);
-        
-        float leftNormalized = juce::jmap(leftDb, -60.0f, 0.0f, 0.0f, 1.0f);
-        float rightNormalized = juce::jmap(rightDb, -60.0f, 0.0f, 0.0f, 1.0f);
-        
-        // Clamp values to 0-1 range
-        leftNormalized = juce::jlimit(0.0f, 1.0f, leftNormalized);
-        rightNormalized = juce::jlimit(0.0f, 1.0f, rightNormalized);
-        
-        // Draw left level meter with gradient colors
-        if (leftNormalized > 0.0f)
+        if (normalizedLevel > 0.0f)
         {
-            auto leftFillArea = leftMeterBounds.reduced(1);
-            int fillHeight = (int)(leftFillArea.getHeight() * leftNormalized);
-            auto fillRect = leftFillArea.removeFromBottom(fillHeight);
+            auto fillArea = meterBounds.reduced(2);
+            float fillHeight = fillArea.getHeight() * normalizedLevel;
+            auto fillRect = juce::Rectangle<float>(fillArea.getX(), fillArea.getBottom() - fillHeight, 
+                                                 fillArea.getWidth(), fillHeight);
             
-            // Use gradient colors: green -> yellow -> red
-            if (leftNormalized > 0.85f)
-                g.setColour(juce::Colours::red);
-            else if (leftNormalized > 0.7f)
-                g.setColour(juce::Colours::orange);
-            else if (leftNormalized > 0.5f)
-                g.setColour(juce::Colours::yellow);
+            // Create beautiful gradient based on level
+            juce::Colour startColour, endColour;
+            if (normalizedLevel > 0.85f)
+            {
+                // Red zone - danger
+                startColour = juce::Colour(0xffff4444);
+                endColour = juce::Colour(0xffcc0000);
+            }
+            else if (normalizedLevel > 0.7f)
+            {
+                // Orange zone - warning
+                startColour = juce::Colour(0xffff8800);
+                endColour = juce::Colour(0xffcc4400);
+            }
+            else if (normalizedLevel > 0.5f)
+            {
+                // Yellow zone - moderate
+                startColour = juce::Colour(0xffffdd00);
+                endColour = juce::Colour(0xffccaa00);
+            }
             else
-                g.setColour(juce::Colours::green);
+            {
+                // Green zone - safe
+                startColour = juce::Colour(0xff00ff88);
+                endColour = juce::Colour(0xff00cc44);
+            }
             
-            g.fillRect(fillRect);
-        }
-        
-        // Draw right level meter with gradient colors
-        if (rightNormalized > 0.0f)
-        {
-            auto rightFillArea = rightMeterBounds.reduced(1);
-            int fillHeight = (int)(rightFillArea.getHeight() * rightNormalized);
-            auto fillRect = rightFillArea.removeFromBottom(fillHeight);
+            // Apply gradient fill
+            juce::ColourGradient levelGradient(startColour, fillRect.getX(), fillRect.getY(),
+                                             endColour, fillRect.getX(), fillRect.getBottom(), false);
+            g.setGradientFill(levelGradient);
+            g.fillRoundedRectangle(fillRect, 2.0f);
             
-            // Use gradient colors: green -> yellow -> red
-            if (rightNormalized > 0.85f)
-                g.setColour(juce::Colours::red);
-            else if (rightNormalized > 0.7f)
-                g.setColour(juce::Colours::orange);
-            else if (rightNormalized > 0.5f)
-                g.setColour(juce::Colours::yellow);
-            else
-                g.setColour(juce::Colours::green);
-            
-            g.fillRect(fillRect);
+            // Add glow effect for high levels
+            if (normalizedLevel > 0.7f)
+            {
+                g.setColour(startColour.withAlpha(0.3f));
+                g.drawRoundedRectangle(fillRect.expanded(1), 3.0f, 1.0f);
+            }
         }
     }
     
-    // Draw scale marks on level meters (optional dB markers)
-    g.setColour(juce::Colour(0xff666666));
-    if (!leftMeterBounds.isEmpty() && !rightMeterBounds.isEmpty())
+    // Enhanced scale marks with modern styling
+    g.setColour(juce::Colour(0xff666666).withAlpha(0.7f));
+    std::vector<float> dbMarks = {-60.0f, -40.0f, -20.0f, -10.0f, -5.0f, 0.0f};
+    
+    for (float db : dbMarks)
     {
-        // Draw dB scale marks at -60, -40, -20, -10, -5, 0 dB
-        std::vector<float> dbMarks = {-60.0f, -40.0f, -20.0f, -10.0f, -5.0f, 0.0f};
+        float normalizedPos = juce::jmap(db, -60.0f, 0.0f, 1.0f, 0.0f);
+        int yPos = meterBounds.getY() + (int)(meterBounds.getHeight() * normalizedPos);
         
-        for (float db : dbMarks)
+        // Draw modern tick marks
+        g.setColour(db == 0.0f ? juce::Colour(0xff00d4ff) : juce::Colour(0xff666666));
+        g.drawLine(meterBounds.getRight() + 2, yPos, meterBounds.getRight() + 8, yPos, 1.5f);
+        
+        // Add dB labels for key marks
+        if (db == 0.0f || db == -20.0f || db == -40.0f)
         {
-            float normalizedPos = juce::jmap(db, -60.0f, 0.0f, 1.0f, 0.0f); // Inverted for bottom-up
-            int yPos = leftMeterBounds.getY() + (int)(leftMeterBounds.getHeight() * normalizedPos);
-            
-            // Draw small tick marks
-            g.drawLine(leftMeterBounds.getRight() + 2, yPos, leftMeterBounds.getRight() + 6, yPos);
-            g.drawLine(rightMeterBounds.getRight() + 2, yPos, rightMeterBounds.getRight() + 6, yPos);
+            g.setFont(juce::Font(9.0f));
+            g.setColour(juce::Colour(0xff999999));
+            juce::String dbText = (db == 0.0f) ? "0" : juce::String((int)db);
+            g.drawText(dbText, meterBounds.getRight() + 10, yPos - 6, 20, 12, 
+                      juce::Justification::centredLeft);
         }
     }
-    
-    // Plugin chain area border removed for cleaner look
 }
 
 void MainComponent::resized()
@@ -593,7 +646,7 @@ void MainComponent::toggleProcessing()
         
         isProcessingActive = false;
         processingToggleButton.setButtonText("Start Processing");
-        processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff007acc)); // Blue for start
+        processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff0099ff));
         inputDeviceComboBox.setEnabled(true);
         outputDeviceComboBox.setEnabled(true);
         
@@ -618,7 +671,7 @@ void MainComponent::toggleProcessing()
             
             isProcessingActive = true;
             processingToggleButton.setButtonText("Stop Processing");
-            processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffcc3300)); // Red for stop
+            processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffcc3300));
             inputDeviceComboBox.setEnabled(false);
             outputDeviceComboBox.setEnabled(false);
             
