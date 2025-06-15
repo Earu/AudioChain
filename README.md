@@ -1,6 +1,6 @@
-# AudioChain - Virtual Audio Device with VST3 Plugin Chain
+# AudioChain - Cross-Platform Audio Processing with VST3 Plugin Chain
 
-AudioChain is a JUCE-based application that creates a virtual audio device allowing other applications to route audio through a customizable VST3 plugin chain. This enables real-time audio processing and effects for any audio source on your system.
+AudioChain is a JUCE-based application that processes audio input through a customizable VST3 plugin chain. This enables real-time audio processing and effects for any audio source on your system, supporting both macOS and Windows platforms.
 
 ## Features
 
@@ -41,9 +41,10 @@ AudioChain is a JUCE-based application that creates a virtual audio device allow
 
 ### Windows
 - Windows 10 or later
-- Visual Studio 2019 or later
+- Visual Studio 2019/2022 (Community edition is free)
 - JUCE 6.0 or later
-- ASIO-compatible audio hardware (recommended)
+- WASAPI/DirectSound audio support (built-in)
+- ASIO-compatible audio hardware (recommended for low latency)
 
 ## Installation
 
@@ -55,7 +56,9 @@ AudioChain is a JUCE-based application that creates a virtual audio device allow
 1. Clone or download this repository
 2. Open `AudioChain.jucer` in the Projucer
 3. Set your JUCE modules path in Projucer
-4. Export the project for your platform (Xcode/Visual Studio)
+4. Export the project for your platform:
+   - **macOS**: Select "Xcode (MacOSX)" target
+   - **Windows**: Select "Visual Studio 2022" target
 5. Build the project in your IDE
 
 ```bash
@@ -66,6 +69,8 @@ cd AudioChain
 # Open in Projucer and export for your platform
 # Then build using Xcode (macOS) or Visual Studio (Windows)
 ```
+
+**Windows users**: See [WINDOWS_BUILD.md](WINDOWS_BUILD.md) for detailed Windows-specific build instructions.
 
 ## Usage
 

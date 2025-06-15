@@ -121,6 +121,9 @@ MainComponent::MainComponent()
     // Note: In a real app, you'd use proper permission checking APIs
     // For now, this is just a reminder to check system preferences
     DBG("Please ensure AudioChain has microphone permissions in System Settings → Privacy & Security → Microphone");
+    #elif JUCE_WINDOWS
+    DBG("Checking Windows microphone permissions...");
+    DBG("Please ensure AudioChain has microphone permissions in Settings → Privacy → Microphone");
     #endif
     
     // Set window size
