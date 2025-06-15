@@ -1,4 +1,5 @@
 #include "VST3PluginHost.h"
+#include "UserConfig.h"
 
 //==============================================================================
 VST3PluginHost::VST3PluginHost()
@@ -475,14 +476,28 @@ void VST3PluginHost::initializePlugin(PluginInstance* instance)
 
 void VST3PluginHost::scanVST3Plugins()
 {
+    // Use configured search paths if available, otherwise use defaults
+    juce::StringArray searchPaths;
+    if (userConfig != nullptr)
+    {
+        searchPaths = userConfig->getVSTSearchPaths();
+    }
+    else
+    {
+        searchPaths = UserConfig::getDefaultVSTSearchPaths();
+    }
+    
+    scanForPlugins(searchPaths);
+}
+
+void VST3PluginHost::scanForPlugins(const juce::StringArray& searchPaths)
+{
     // Clear existing plugins
     availablePlugins.clear();
-    
-    DBG("=== Starting Simple VST3 Plugin Scan ===");
-    
-    // For now, let's manually add some known VST3 plugins to test the system
-    // This avoids the scanning crash while we debug
-    
+
+    DBG("=== Starting VST3 Plugin Scan ===");
+    DBG("Search paths: " + searchPaths.joinIntoString(", "));
+
     // Check if we have VST3 format available
     juce::AudioPluginFormat* vst3Format = nullptr;
     for (int i = 0; i < formatManager.getNumFormats(); ++i)
@@ -495,23 +510,24 @@ void VST3PluginHost::scanVST3Plugins()
             break;
         }
     }
-    
+
     if (vst3Format != nullptr)
     {
-        // Manual verification scan - check what's actually in the directories
-        DBG("=== Manual Directory Verification ===");
-        
-        // Get platform-specific VST3 directories
+        // Convert search paths to File objects
         juce::Array<juce::File> vstDirectories;
-        
-        #if JUCE_MAC
-        vstDirectories.add(juce::File("/Library/Audio/Plug-Ins/VST3"));
-        vstDirectories.add(juce::File("~/Library/Audio/Plug-Ins/VST3"));
-        #elif JUCE_WINDOWS
-        vstDirectories.add(juce::File("C:\\Program Files\\Common Files\\VST3"));
-        vstDirectories.add(juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                              .getChildFile("VST3"));
-        #endif
+        for (const auto& path : searchPaths)
+        {
+            juce::File dir(path);
+            if (dir.exists() && dir.isDirectory())
+            {
+                vstDirectories.add(dir);
+                DBG("Added search path: " + dir.getFullPathName());
+            }
+            else
+            {
+                DBG("Invalid search path: " + path);
+            }
+        }
         
         for (const auto& vstDir : vstDirectories)
         {
@@ -617,7 +633,7 @@ void VST3PluginHost::scanVST3Plugins()
     }
     
     DBG("Final available plugins count: " + juce::String(availablePlugins.size()));
-    DBG("=== Simple VST3 Plugin Scan Complete ===");
+    DBG("=== VST3 Plugin Scan Complete ===");
 }
 
 void VST3PluginHost::addPluginToList(const juce::PluginDescription& description)

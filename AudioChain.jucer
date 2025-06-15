@@ -26,6 +26,10 @@
             resource="0" file="Source/AudioInputManager.h"/>
       <FILE id="AudioInputManager.cpp" name="AudioInputManager.cpp" compile="1"
             resource="0" file="Source/AudioInputManager.cpp"/>
+      <FILE id="UserConfig.h" name="UserConfig.h" compile="0" resource="0"
+            file="Source/UserConfig.h"/>
+      <FILE id="UserConfig.cpp" name="UserConfig.cpp" compile="1" resource="0"
+            file="Source/UserConfig.cpp"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

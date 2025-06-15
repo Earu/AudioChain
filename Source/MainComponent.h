@@ -5,6 +5,7 @@
 #include "VST3PluginHost.h"
 #include "AudioProcessor.h"
 #include "PluginChainComponent.h"
+#include "UserConfig.h"
 
 //==============================================================================
 // Enhanced Modern Dark LookAndFeel with gradients and visual effects
@@ -215,6 +216,9 @@ private:
     
     // VST3 Plugin Host
     std::unique_ptr<VST3PluginHost> pluginHost;
+    
+    // User Configuration
+    std::unique_ptr<UserConfig> userConfig;
     
     // UI Components
     std::unique_ptr<PluginChainComponent> pluginChainComponent;

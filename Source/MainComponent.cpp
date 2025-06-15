@@ -17,12 +17,18 @@ MainComponent::MainComponent()
     audioProcessor = std::make_unique<AudioProcessor>();
     DBG("AudioProcessor created successfully");
 
+    DBG("Creating UserConfig...");
+    userConfig = std::make_unique<UserConfig>();
+    DBG("UserConfig created successfully");
+
     DBG("Creating VST3PluginHost...");
     pluginHost = std::make_unique<VST3PluginHost>();
+    pluginHost->setUserConfig(userConfig.get());
     DBG("VST3PluginHost created successfully");
 
     DBG("Creating PluginChainComponent...");
     pluginChainComponent = std::make_unique<PluginChainComponent>(*pluginHost);
+    pluginChainComponent->getPluginBrowser()->setUserConfig(userConfig.get());
     DBG("PluginChainComponent created successfully");
 
     // Initialize UI components - this is required for setupLayout to work

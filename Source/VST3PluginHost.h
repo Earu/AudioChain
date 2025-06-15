@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "UserConfig.h"
 
 //==============================================================================
 /**
@@ -62,7 +63,11 @@ public:
     
     // Plugin scanning
     void scanForPlugins();
+    void scanForPlugins(const juce::StringArray& searchPaths);
     const juce::Array<PluginInfo>& getAvailablePlugins() const { return availablePlugins; }
+    
+    // Configuration
+    void setUserConfig(UserConfig* config) { userConfig = config; }
     
     // Plugin editors
     juce::AudioProcessorEditor* createEditorForPlugin(int index);
@@ -103,6 +108,9 @@ private:
     
     // Threading
     juce::CriticalSection pluginLock;
+    
+    // Configuration
+    UserConfig* userConfig = nullptr;
     
     // Helper methods
     PluginInfo createPluginInfo(const juce::PluginDescription& description);
