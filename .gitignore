@@ -1,3 +1,21 @@
 JuceLibraryCode/*
 Builds/MacOSX/build/*
 **/.DS_Store
+
+# Visual Studio
+Builds/VisualStudio2022/.vs/
+Builds/VisualStudio2022/x64/
+Builds/VisualStudio2022/*.vcxproj.user
+Builds/VisualStudio2022/*.suo
+Builds/VisualStudio2022/*.user
+Builds/VisualStudio2022/*.ncb
+Builds/VisualStudio2022/*.aps
+Builds/VisualStudio2022/*.pdb
+Builds/VisualStudio2022/*.ilk
+Builds/VisualStudio2022/*.obj
+Builds/VisualStudio2022/*.exe
+Builds/VisualStudio2022/*.log
+Builds/VisualStudio2022/*.tlog
+Builds/VisualStudio2022/*.res
+Builds/VisualStudio2022/*.lastbuildstate
+Builds/VisualStudio2022/*.recipe
