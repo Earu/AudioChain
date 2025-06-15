@@ -25,5 +25,7 @@
     <string></string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app requires microphone access to process audio.</string>
   </dict>
 </plist>
