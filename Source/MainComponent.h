@@ -22,13 +22,17 @@ public:
         setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
         setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
         setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
-        setColour(juce::ComboBox::arrowColourId, juce::Colour(0xff00d4ff));
+        setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
         
-        // PopupMenu colors
+        // PopupMenu colors - clean monochromatic theme
         setColour(juce::PopupMenu::backgroundColourId, juce::Colour(0xff1e1e1e));
         setColour(juce::PopupMenu::textColourId, juce::Colour(0xffe0e0e0));
-        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colour(0xff00d4ff).withAlpha(0.3f));
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, juce::Colours::white.withAlpha(0.15f));
         setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
+        
+        // Remove any additional borders or outlines
+        setColour(juce::PopupMenu::headerTextColourId, juce::Colours::white);
+        setColour(juce::PopupMenu::ColourIds::backgroundColourId, juce::Colour(0xff1e1e1e));
     }
     
     // Enhanced button drawing with gradients and effects
@@ -42,36 +46,43 @@ public:
         
         if (isCTAButton)
         {
-            // Modern gradient CTA button
+            // Modern CTA button with subtle gradient for visual flair
+            juce::Colour baseColour = backgroundColour;
+            
+            // Clean skeumorphic gradient similar to other buttons
             juce::ColourGradient gradient;
             if (shouldDrawButtonAsDown)
             {
-                gradient = juce::ColourGradient(juce::Colour(0xff0066cc), bounds.getX(), bounds.getY(),
-                                              juce::Colour(0xff004499), bounds.getX(), bounds.getBottom(), false);
+                // Pressed state - inverted gradient for "pushed in" effect
+                gradient = juce::ColourGradient(baseColour.darker(0.2f), bounds.getX(), bounds.getY(),
+                                              baseColour.brighter(0.1f), bounds.getX(), bounds.getBottom(), false);
             }
             else if (shouldDrawButtonAsHighlighted)
             {
-                gradient = juce::ColourGradient(juce::Colour(0xff00aaff), bounds.getX(), bounds.getY(),
-                                              juce::Colour(0xff0088cc), bounds.getX(), bounds.getBottom(), false);
+                // Highlighted state - enhanced gradient
+                gradient = juce::ColourGradient(baseColour.brighter(0.2f), bounds.getX(), bounds.getY(),
+                                              baseColour.darker(0.1f), bounds.getX(), bounds.getBottom(), false);
             }
             else
             {
-                gradient = juce::ColourGradient(juce::Colour(0xff0099ff), bounds.getX(), bounds.getY(),
-                                              juce::Colour(0xff0066cc), bounds.getX(), bounds.getBottom(), false);
+                // Normal state - clean skeumorphic gradient
+                gradient = juce::ColourGradient(baseColour.brighter(0.1f), bounds.getX(), bounds.getY(),
+                                              baseColour.darker(0.1f), bounds.getX(), bounds.getBottom(), false);
             }
             
+            // Fill with clean gradient like other buttons
             g.setGradientFill(gradient);
             g.fillRoundedRectangle(bounds, 4.0f);
             
-            // Add subtle glow effect
+            // Add subtle glow effect when highlighted
             if (shouldDrawButtonAsHighlighted)
             {
-                g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
+                g.setColour(juce::Colours::white.withAlpha(0.2f));
                 g.drawRoundedRectangle(bounds.expanded(1), 5.0f, 1.0f);
             }
             
-            // Modern border
-            g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.6f));
+            // Clean border like other buttons
+            g.setColour(juce::Colours::white.withAlpha(0.4f));
             g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
         }
         else
@@ -105,13 +116,13 @@ public:
         g.setGradientFill(gradient);
         g.fillRoundedRectangle(boxBounds, 4.0f);
 
-        // Modern border with accent color
-        g.setColour(box.hasKeyboardFocus(true) ? juce::Colour(0xff00d4ff) : juce::Colour(0xff404040));
+        // Modern border with white accent
+        g.setColour(box.hasKeyboardFocus(true) ? juce::Colours::white : juce::Colour(0xff404040));
         g.drawRoundedRectangle(boxBounds, 4.0f, 1.0f);
 
         // Enhanced arrow with modern styling
         juce::Rectangle<float> arrowZone(width - 30, 0, 20, height);
-        g.setColour(juce::Colour(0xff00d4ff).withAlpha(box.isEnabled() ? 0.9f : 0.3f));
+        g.setColour(juce::Colours::white.withAlpha(box.isEnabled() ? 0.9f : 0.3f));
 
         auto arrowX = arrowZone.getCentreX();
         auto arrowY = arrowZone.getCentreY() - 1;
@@ -124,24 +135,18 @@ public:
         g.strokePath(path, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved));
     }
     
-    // Enhanced popup menu styling
+    // Clean popup menu styling to match monochromatic theme
     void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override
     {
         juce::Rectangle<float> bounds(0, 0, width, height);
         
-        // Gradient background
-        juce::ColourGradient gradient(juce::Colour(0xff2a2a2a), 0, 0,
-                                    juce::Colour(0xff1a1a1a), 0, height, false);
-        g.setGradientFill(gradient);
-        g.fillRoundedRectangle(bounds, 6.0f);
+        // Flat dark background - no gradient for cleaner look
+        g.setColour(juce::Colour(0xff1e1e1e));
+        g.fillRoundedRectangle(bounds, 4.0f); // Smaller radius to match other elements
         
-        // Modern border
-        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.3f));
-        g.drawRoundedRectangle(bounds, 6.0f, 1.0f);
-        
-        // Subtle shadow effect
-        g.setColour(juce::Colours::black.withAlpha(0.3f));
-        g.drawRoundedRectangle(bounds.expanded(1), 7.0f, 1.0f);
+        // Single clean white border
+        g.setColour(juce::Colours::white.withAlpha(0.2f));
+        g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
     }
     
     // Override to provide larger font for buttons (especially CTA)
@@ -152,6 +157,15 @@ public:
             return juce::Font(16.0f, juce::Font::bold); // Larger, bold font for CTA
         else
             return juce::Font(14.0f); // Normal font for other buttons
+    }
+    
+    // Override to provide pointer cursor for buttons
+    juce::MouseCursor getMouseCursorFor(juce::Component& component) override
+    {
+        if (dynamic_cast<juce::TextButton*>(&component) != nullptr)
+            return juce::MouseCursor::PointingHandCursor;
+        
+        return juce::LookAndFeel_V4::getMouseCursorFor(component);
     }
 };
 
@@ -233,6 +247,8 @@ private:
     
     // Enhanced visual methods
     void drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectangle<int>& bounds, float level);
+    void drawTechGrid(juce::Graphics& g, const juce::Rectangle<int>& area);
+    void drawTechStatusIndicator(juce::Graphics& g, const juce::Rectangle<int>& bounds, bool isActive);
     
     // Callbacks
     void toggleProcessing();
