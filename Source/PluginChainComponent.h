@@ -114,10 +114,12 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         void refreshPluginList();
         void setVisible(bool shouldBeVisible) override;
         void setUserConfig(UserConfig *config) { userConfig = config; }
+        void onScanComplete();
 
       private:
         VST3PluginHost &pluginHost;
         UserConfig *userConfig = nullptr;
+        bool isLoadingPlugins = false;
 
         // Main UI components
         juce::ListBox pluginList;
@@ -243,6 +245,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
     // Callbacks
     void onPluginChainChanged();
     void onPluginError(int pluginIndex, const juce::String &error);
+    void onPluginScanComplete();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginChainComponent)
 };
