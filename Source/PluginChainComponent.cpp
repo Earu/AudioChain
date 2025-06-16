@@ -2,11 +2,11 @@
 
 //==============================================================================
 PluginChainComponent::PluginChainComponent(VST3PluginHost &pluginHost_) : pluginHost(pluginHost_) {
-    // Initialize plugin slots
-    for (int i = 0; i < maxPluginSlots; ++i) {
-        pluginSlots[i] = std::make_unique<PluginSlot>(i, pluginHost, *this);
-        addAndMakeVisible(*pluginSlots[i]);
-    }
+    // Initialize scrollable plugin chain
+    chainContainer = std::make_unique<PluginChainContainer>(*this);
+    chainViewport.setViewedComponent(chainContainer.get(), false);
+    chainViewport.setScrollBarsShown(true, false); // Vertical scrollbar only
+    addAndMakeVisible(chainViewport);
 
     // Initialize level meters
     // Level meters are now handled by MainComponent
@@ -65,30 +65,15 @@ PluginChainComponent::~PluginChainComponent() {
     stopTimer();
 
     // Close all plugin editors
-    for (int i = 0; i < maxPluginSlots; ++i) {
+    for (int i = 0; i < pluginSlots.size(); ++i) {
         closePluginEditor(i);
     }
 }
 
 //==============================================================================
 void PluginChainComponent::paint(juce::Graphics &g) {
-    // Remove background fills to let the main app background show through
-    // This makes the beautiful plugin slots stand out more
-
-    // Draw connecting lines between plugin slots
-    g.setColour(juce::Colour(0xff666666).withAlpha(0.6f));
-    for (int i = 0; i < maxPluginSlots - 1; ++i) {
-        if (pluginSlots[i]->hasPlugin()) {
-            auto slot1Bounds = pluginSlots[i]->getBounds();
-            auto slot2Bounds = pluginSlots[i + 1]->getBounds();
-
-            juce::Line<float> line(slot1Bounds.getRight(), slot1Bounds.getCentreY(), slot2Bounds.getX(),
-                                   slot2Bounds.getCentreY());
-            g.drawLine(line, 2.0f);
-        } else {
-            break; // Stop drawing connections after first empty slot
-        }
-    }
+    // Background is handled by the main app
+    // Connecting lines are now handled by the PluginChainContainer
 }
 
 void PluginChainComponent::resized() {
@@ -100,22 +85,13 @@ void PluginChainComponent::resized() {
     addPluginButton.setBounds(controlArea.removeFromLeft(100).reduced(2));
     clearAllButton.setBounds(controlArea.removeFromLeft(80).reduced(2));
 
-    // Level meters are now handled by MainComponent
-    // meterArea = area.removeFromRight(60);
-    // for (int i = 0; i < 2; ++i)
-    // {
-    //     auto meterBounds = meterArea.removeFromTop(meterArea.getHeight() / 2);
-    //     levelMeters[i]->setBounds(meterBounds.reduced(5));
-    // }
-
-    // Chain area (remaining space)
+    // Chain area (remaining space) - now uses viewport
     chainArea = area.reduced(10);
+    chainViewport.setBounds(chainArea);
 
-    // Layout plugin slots vertically (horizontal slots stacked top to bottom)
-    int slotHeight = 60; // Reduced from 80px to 60px for more compact layout
-    for (int i = 0; i < maxPluginSlots; ++i) {
-        auto slotBounds = chainArea.removeFromTop(slotHeight).reduced(2);
-        pluginSlots[i]->setBounds(slotBounds);
+    // Update the container size and layout
+    if (chainContainer) {
+        chainContainer->updateSlots();
     }
 
     // Plugin browser (full component)
@@ -137,16 +113,36 @@ void PluginChainComponent::timerCallback() {
 
 //==============================================================================
 void PluginChainComponent::refreshPluginChain() {
-    // Update plugin slots with current chain state
-    for (int i = 0; i < maxPluginSlots; ++i) {
-        if (i < pluginHost.getNumPlugins()) {
+    int numPlugins = pluginHost.getNumPlugins();
+    int slotsNeeded = numPlugins + 1; // Loaded plugins + one empty slot
+
+    // Add slots if we need more
+    while (pluginSlots.size() < slotsNeeded) {
+        int newIndex = pluginSlots.size();
+        auto newSlot = std::make_unique<PluginSlot>(newIndex, pluginHost, *this);
+        chainContainer->addAndMakeVisible(newSlot.get());
+        pluginSlots.add(newSlot.release());
+    }
+
+    // Remove excess slots if we have too many (keep only one empty slot)
+    while (pluginSlots.size() > slotsNeeded) {
+        pluginSlots.removeLast();
+    }
+
+    // Update existing slots with current chain state
+    for (int i = 0; i < pluginSlots.size(); ++i) {
+        if (i < numPlugins) {
             auto info = pluginHost.getPluginInfo(i);
             pluginSlots[i]->setPluginInfo(info);
         } else {
             pluginSlots[i]->clearPlugin();
         }
     }
-    repaint();
+
+    // Update container layout
+    if (chainContainer) {
+        chainContainer->updateSlots();
+    }
 }
 
 void PluginChainComponent::showPluginBrowser() {
@@ -164,7 +160,7 @@ void PluginChainComponent::hidePluginBrowser() {
 }
 
 void PluginChainComponent::openPluginEditor(int slotIndex) {
-    if (slotIndex < 0 || slotIndex >= maxPluginSlots)
+    if (slotIndex < 0 || slotIndex >= pluginSlots.size())
         return;
 
     // Close existing editor for this slot
@@ -223,8 +219,8 @@ void PluginChainComponent::onPluginScanComplete() {
 
 void PluginChainComponent::handleDraggedPlugin(int fromSlot, int toSlot) {
     // Convert UI slot indices to actual plugin chain indices
-    // Only move if both slots have plugins or we're moving to an empty slot
-    if (fromSlot >= 0 && fromSlot < maxPluginSlots && toSlot >= 0 && toSlot < maxPluginSlots && fromSlot != toSlot) {
+    // Only move if both slots are valid and we're moving to a different slot
+    if (fromSlot >= 0 && fromSlot < pluginSlots.size() && toSlot >= 0 && toSlot < pluginSlots.size() && fromSlot != toSlot) {
         // Check if source slot has a plugin
         if (fromSlot < pluginHost.getNumPlugins()) {
             // If target slot is beyond current plugins, we're appending
@@ -1252,6 +1248,60 @@ void PluginChainComponent::LevelMeter::setLevel(float newLevel) {
     level = juce::jlimit(0.0f, 1.0f, newLevel);
     smoothedLevel.setTargetValue(level.load());
     repaint();
+}
+
+//==============================================================================
+// PluginChainContainer Implementation
+//==============================================================================
+void PluginChainComponent::PluginChainContainer::paint(juce::Graphics &g) {
+    // Draw connecting lines between plugin slots
+    g.setColour(juce::Colour(0xff666666).withAlpha(0.6f));
+
+    for (int i = 0; i < parentComponent.pluginSlots.size() - 1; ++i) {
+        auto* slot1 = parentComponent.pluginSlots[i];
+        auto* slot2 = parentComponent.pluginSlots[i + 1];
+
+        if (slot1->hasPlugin() && slot2 != nullptr) {
+            auto slot1Bounds = slot1->getBounds();
+            auto slot2Bounds = slot2->getBounds();
+
+            juce::Line<float> line(slot1Bounds.getRight(), slot1Bounds.getCentreY(),
+                                   slot2Bounds.getX(), slot2Bounds.getCentreY());
+            g.drawLine(line, 2.0f);
+        } else {
+            break; // Stop drawing connections after first empty slot
+        }
+    }
+}
+
+void PluginChainComponent::PluginChainContainer::resized() {
+    updateSlots();
+}
+
+void PluginChainComponent::PluginChainContainer::updateSlots() {
+    int slotHeight = 60;
+    int slotSpacing = 4;
+    int totalHeight = 0;
+
+    // Calculate total height needed
+    if (!parentComponent.pluginSlots.isEmpty()) {
+        totalHeight = parentComponent.pluginSlots.size() * (slotHeight + slotSpacing) - slotSpacing;
+    }
+
+    // Set container size
+    auto viewportBounds = parentComponent.chainViewport.getBounds();
+    int containerWidth = viewportBounds.getWidth() - parentComponent.chainViewport.getScrollBarThickness();
+    setSize(containerWidth, juce::jmax(totalHeight, viewportBounds.getHeight()));
+
+    // Layout slots vertically
+    int yPos = 0;
+    for (int i = 0; i < parentComponent.pluginSlots.size(); ++i) {
+        auto* slot = parentComponent.pluginSlots[i];
+        if (slot != nullptr) {
+            slot->setBounds(0, yPos, containerWidth, slotHeight);
+            yPos += slotHeight + slotSpacing;
+        }
+    }
 }
 
 //==============================================================================

@@ -192,9 +192,23 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
     //==============================================================================
     VST3PluginHost &pluginHost;
 
-    // Plugin slots
-    static constexpr int maxPluginSlots = 8;
-    std::array<std::unique_ptr<PluginSlot>, maxPluginSlots> pluginSlots;
+    // Scrollable plugin chain container
+    class PluginChainContainer : public juce::Component {
+    public:
+        PluginChainContainer(PluginChainComponent& parent) : parentComponent(parent) {}
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+        void updateSlots();
+
+    private:
+        PluginChainComponent& parentComponent;
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginChainContainer)
+    };
+
+    // Plugin slots (dynamic)
+    juce::OwnedArray<PluginSlot> pluginSlots;
+    std::unique_ptr<PluginChainContainer> chainContainer;
+    juce::Viewport chainViewport;
 
     // UI Components
     std::unique_ptr<PluginBrowser> pluginBrowser;
