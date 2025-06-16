@@ -111,10 +111,10 @@ void PluginChainComponent::resized() {
     // Chain area (remaining space)
     chainArea = area.reduced(10);
 
-    // Layout plugin slots
-    int slotWidth = chainArea.getWidth() / maxPluginSlots;
+    // Layout plugin slots vertically (horizontal slots stacked top to bottom)
+    int slotHeight = 60; // Reduced from 80px to 60px for more compact layout
     for (int i = 0; i < maxPluginSlots; ++i) {
-        auto slotBounds = chainArea.removeFromLeft(slotWidth).reduced(2);
+        auto slotBounds = chainArea.removeFromTop(slotHeight).reduced(2);
         pluginSlots[i]->setBounds(slotBounds);
     }
 
@@ -249,15 +249,17 @@ PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost &host, Pl
     addAndMakeVisible(editButton);
     addAndMakeVisible(removeButton);
 
-    // Setup labels with dark theme
-    nameLabel.setJustificationType(juce::Justification::centredTop);
-    nameLabel.setFont(juce::Font(12.0f, juce::Font::bold));
+    // Setup labels for horizontal layout
+    nameLabel.setJustificationType(juce::Justification::centredLeft);
+    nameLabel.setFont(juce::Font("Arial Black", 20.0f, juce::Font::bold)); // Increased from 16pt to 20pt
     nameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    nameLabel.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     nameLabel.setInterceptsMouseClicks(false, false); // Allow mouse events to pass through
 
-    manufacturerLabel.setJustificationType(juce::Justification::centredTop);
-    manufacturerLabel.setFont(juce::Font(10.0f));
+    manufacturerLabel.setJustificationType(juce::Justification::centredLeft);
+    manufacturerLabel.setFont(juce::Font("Consolas", 12.0f, juce::Font::plain));
     manufacturerLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    manufacturerLabel.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     manufacturerLabel.setInterceptsMouseClicks(false, false); // Allow mouse events to pass through
 
     // Setup buttons with modern styling
@@ -309,13 +311,8 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics &g) {
         // Draw enhanced plugin background
         drawPluginBackground(g, bounds);
 
-        // Draw status indicator at the top center
+        // Draw status indicator on the left
         drawStatusIndicator(g, bounds);
-
-        // Draw plugin icon area in top portion (below status indicator)
-        auto iconArea = bounds.removeFromTop(bounds.getHeight() / 3).reduced(8);
-        iconArea.removeFromTop(12); // Make room for status indicator
-        drawPluginIcon(g, iconArea);
 
         // Add subtle shadow effect when not bypassed - use original bounds
         if (!isBypassed) {
@@ -323,12 +320,14 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics &g) {
             g.drawRect(originalBounds.expanded(1), 1);
         }
     } else {
-        // Draw empty slot with subtle pattern
-        g.setColour(juce::Colour(0xff2d2d2d));
+        // Draw empty slot with hover feedback
+        juce::Colour bgColor = isEmptySlotHovered ? juce::Colour(0xff404040) : juce::Colour(0xff2d2d2d);
+        g.setColour(bgColor);
         g.fillRect(bounds);
 
         // Draw dashed border for empty slots
-        g.setColour(juce::Colour(0xff404040));
+        juce::Colour borderColor = isEmptySlotHovered ? juce::Colour(0xff606060) : juce::Colour(0xff404040);
+        g.setColour(borderColor);
         float dashLengths[] = {4.0f, 4.0f};
         auto borderBounds = bounds.toFloat();
         g.drawDashedLine(
@@ -344,45 +343,62 @@ void PluginChainComponent::PluginSlot::paint(juce::Graphics &g) {
             juce::Line<float>(borderBounds.getX(), borderBounds.getBottom(), borderBounds.getX(), borderBounds.getY()),
             dashLengths, 2);
 
-        // Draw "+" icon for empty slots
-        g.setColour(juce::Colour(0xff666666));
-        auto centerX = bounds.getCentreX();
-        auto centerY = bounds.getCentreY();
-        auto iconSize = 20;
-        g.drawLine(centerX - iconSize / 2, centerY, centerX + iconSize / 2, centerY, 2.0f);
-        g.drawLine(centerX, centerY - iconSize / 2, centerX, centerY + iconSize / 2, 2.0f);
+        // Calculate text height to adjust icon position
+        juce::Font textFont(14.0f);
+        int textHeight = textFont.getHeight();
+        int textMargin = 4;
 
-        g.setColour(juce::Colour(0xff666666));
+        // Draw "+" icon for empty slots - centered in the space above the text
+        juce::Colour iconColor = isEmptySlotHovered ? juce::Colour(0xff888888) : juce::Colour(0xff666666);
+        g.setColour(iconColor);
+        auto centerX = bounds.getCentreX();
+        auto iconCenterY = bounds.getCentreY() - (textHeight + textMargin) / 2; // Shift up to account for text
+        auto iconSize = 20;
+        g.drawLine(centerX - iconSize / 2, iconCenterY, centerX + iconSize / 2, iconCenterY, 2.0f);
+        g.drawLine(centerX, iconCenterY - iconSize / 2, centerX, iconCenterY + iconSize / 2, 2.0f);
+
+        // Draw "Empty" text
+        g.setColour(iconColor);
         g.drawText("Empty", bounds.reduced(4), juce::Justification::centredBottom);
     }
 }
 
 void PluginChainComponent::PluginSlot::resized() {
-    if (!hasPlugin())
-        return;
-
     auto bounds = getLocalBounds().reduced(4);
 
-    // Status indicator at top center
-    statusIndicatorBounds = juce::Rectangle<int>(bounds.getCentreX() - 6, bounds.getY() + 6, 12, 12);
+    if (hasPlugin()) {
+        // Horizontal layout: [Toggle] [Text Area] [Buttons]
 
-    // Reserve top area for icon and status indicator
-    bounds.removeFromTop(bounds.getHeight() / 3);
+        // Status indicator (toggle) on the left
+        statusIndicatorBounds = juce::Rectangle<int>(bounds.getX() + 10, bounds.getCentreY() - 8, 16, 16);
+        auto toggleArea = bounds.removeFromLeft(40); // Space for toggle + margin
 
-    // Labels in middle area (more space now)
-    auto labelArea = bounds.removeFromTop(bounds.getHeight() * 0.5f);
-    nameLabel.setBounds(labelArea.removeFromTop(labelArea.getHeight() / 2));
-    manufacturerLabel.setBounds(labelArea);
+        // Buttons on the right
+        auto buttonWidth = 60;
+        auto buttonSpacing = 4;
+        auto totalButtonWidth = (buttonWidth * 2) + buttonSpacing + 8; // Two buttons + spacing + margins
+        auto buttonArea = bounds.removeFromRight(totalButtonWidth);
 
-    // Buttons at bottom with fixed height, stacked from bottom
-    auto buttonArea = bounds.reduced(2);
-    auto buttonHeight = 50; // Taller buttons
-    auto buttonSpacing = 4;
+        // Split button area horizontally
+        editButton.setBounds(buttonArea.removeFromLeft(buttonWidth).reduced(2));
+        buttonArea.removeFromLeft(buttonSpacing);
+        removeButton.setBounds(buttonArea.reduced(2));
 
-    // Stack buttons from the bottom
-    removeButton.setBounds(buttonArea.removeFromBottom(buttonHeight).reduced(1));
-    buttonArea.removeFromBottom(buttonSpacing);
-    editButton.setBounds(buttonArea.removeFromBottom(buttonHeight).reduced(1));
+        // Text area gets the remaining middle space
+        auto textArea = bounds.reduced(8, 4); // Some padding
+
+        // Split text area vertically: plugin name on top, manufacturer below
+        auto nameHeight = textArea.getHeight() * 0.6f; // 60% for plugin name
+        nameLabel.setBounds(textArea.removeFromTop(nameHeight));
+        manufacturerLabel.setBounds(textArea); // Rest for manufacturer
+    } else {
+        // Empty slot - just center everything
+        statusIndicatorBounds = juce::Rectangle<int>();
+        nameLabel.setBounds(bounds);
+        manufacturerLabel.setBounds(juce::Rectangle<int>());
+        editButton.setBounds(juce::Rectangle<int>());
+        removeButton.setBounds(juce::Rectangle<int>());
+    }
 }
 
 void PluginChainComponent::PluginSlot::buttonClicked(juce::Button *button) {
@@ -454,8 +470,17 @@ void PluginChainComponent::PluginSlot::mouseDrag(const juce::MouseEvent &event) 
 
 void PluginChainComponent::PluginSlot::mouseMove(const juce::MouseEvent &event) {
     if (!hasPlugin()) {
+        // Handle empty slot hover state
+        bool wasEmptyHovered = isEmptySlotHovered;
+        isEmptySlotHovered = true;
+
         // Show pointer cursor for empty slots to indicate they're clickable
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
+
+        // Repaint if hover state changed
+        if (wasEmptyHovered != isEmptySlotHovered) {
+            repaint();
+        }
         return;
     }
 
@@ -483,8 +508,19 @@ void PluginChainComponent::PluginSlot::mouseExit(const juce::MouseEvent &event) 
     // Always reset cursor when exiting
     setMouseCursor(juce::MouseCursor::NormalCursor);
 
+    bool needsRepaint = false;
+
     if (isStatusIndicatorHovered) {
         isStatusIndicatorHovered = false;
+        needsRepaint = true;
+    }
+
+    if (isEmptySlotHovered) {
+        isEmptySlotHovered = false;
+        needsRepaint = true;
+    }
+
+    if (needsRepaint) {
         repaint();
     }
 }
@@ -529,7 +565,8 @@ void PluginChainComponent::PluginSlot::itemDropped(const SourceDetails &dragSour
 void PluginChainComponent::PluginSlot::setPluginInfo(const VST3PluginHost::PluginInfo &info) {
     pluginInfo = info;
 
-    nameLabel.setText(info.name, juce::dontSendNotification);
+    // Set text with uppercase plugin name for impact
+    nameLabel.setText(info.name.toUpperCase(), juce::dontSendNotification);
     manufacturerLabel.setText(info.manufacturer, juce::dontSendNotification);
 
     // Generate visual theme
@@ -587,68 +624,104 @@ void PluginChainComponent::PluginSlot::generatePluginTheme() {
 }
 
 void PluginChainComponent::PluginSlot::drawPluginBackground(juce::Graphics &g, const juce::Rectangle<int> &bounds) {
-    // Always draw procedural pattern
+    // Draw procedural pattern that fills the entire slot
     drawProceduralPattern(g, bounds);
 
-    // Draw border
-    g.setColour(accentColour.withAlpha(isBypassed ? 0.3f : 0.8f));
-    g.drawRect(bounds, 2);
+    // Draw darker border for better text readability
+    juce::Colour borderColor = isBypassed ? juce::Colour(0xff333333) : juce::Colour(0xff555555);
+    g.setColour(borderColor.withAlpha(isBypassed ? 0.4f : 0.7f));
+    g.drawRect(bounds, isBypassed ? 1 : 2);
 }
 
 void PluginChainComponent::PluginSlot::drawProceduralPattern(juce::Graphics &g, const juce::Rectangle<int> &bounds) {
-    // Create gradient background
-    juce::ColourGradient gradient(primaryColour.withAlpha(isBypassed ? 0.3f : 0.7f), bounds.getX(), bounds.getY(),
-                                  secondaryColour.withAlpha(isBypassed ? 0.2f : 0.5f), bounds.getRight(),
-                                  bounds.getBottom(), false);
-    g.setGradientFill(gradient);
+    // Fill entire slot with black background
+    g.setColour(juce::Colours::black);
     g.fillRect(bounds);
 
-    // Add pattern based on plugin type and name
-    g.setColour(accentColour.withAlpha(isBypassed ? 0.1f : 0.2f));
+    // Create clean topographic pattern with white lines
+    auto hash = pluginInfo.name.hashCode();
+    juce::Random random(hash);
 
-    // Generate pattern based on plugin name hash
-    auto nameHash = pluginInfo.name.hashCode();
-    auto patternType = nameHash % 4;
+    // Create unique elevation center based on plugin hash - keep well within bounds
+    float centerVariationX = ((hash % 100) / 100.0f) * 0.4f + 0.3f; // 0.3 to 0.7 (more centered)
+    float centerVariationY = (((hash / 100) % 100) / 100.0f) * 0.4f + 0.3f; // 0.3 to 0.7 (more centered)
+    juce::Point<float> center(
+        bounds.getX() + bounds.getWidth() * centerVariationX,
+        bounds.getY() + bounds.getHeight() * centerVariationY
+    );
 
-    switch (patternType) {
-    case 0: // Diagonal lines
-    {
-        for (int i = -bounds.getHeight(); i < bounds.getWidth(); i += 20) {
-            g.drawLine(bounds.getX() + i, bounds.getY(), bounds.getX() + i + bounds.getHeight(), bounds.getBottom(),
-                       1.0f);
+    // Draw darker contour lines for better text readability
+    juce::Colour lineColor = isBypassed ? juce::Colour(0xff333333) : juce::Colour(0xff666666);
+    g.setColour(lineColor.withAlpha(isBypassed ? 0.3f : 0.6f));
+
+    // Vary contour density and size based on plugin hash for uniqueness
+    int numContours = 15 + (hash % 10); // 15-24 contours for variation
+    float radiusMultiplier = 1.0f + ((hash % 50) / 100.0f); // 1.0 to 1.5 for better coverage
+    // Use diagonal distance to ensure we can fill corners
+    float maxRadius = std::sqrt(bounds.getWidth() * bounds.getWidth() + bounds.getHeight() * bounds.getHeight()) * radiusMultiplier;
+
+    for (int contour = 1; contour < numContours; ++contour) {
+        float elevation = (float)contour / numContours;
+        float contourDistance = elevation * maxRadius;
+
+        // Create organic contour shape by collecting all valid points first
+        int samples = 64;
+        std::vector<juce::Point<float>> validPoints;
+
+        for (int sample = 0; sample <= samples; ++sample) {
+            float angle = (float)sample / samples * juce::MathConstants<float>::twoPi;
+
+            // Add unique organic variation based on plugin hash
+            float freq1 = 3 + (hash % 5); // 3-7
+            float freq2 = 6 + ((hash / 10) % 6); // 6-11
+            float amp1 = 0.08f + ((hash % 20) / 200.0f); // 0.08-0.18
+            float amp2 = 0.03f + ((hash % 15) / 300.0f); // 0.03-0.08
+
+            float variation =
+                std::sin(angle * freq1 + hash * 0.01f) * contourDistance * amp1 +
+                std::sin(angle * freq2 + hash * 0.02f) * contourDistance * amp2;
+
+            float radius = contourDistance + variation;
+
+            float x = center.x + std::cos(angle) * radius;
+            float y = center.y + std::sin(angle) * radius;
+
+            // Clip points to bounds instead of excluding them entirely
+            x = juce::jlimit((float)bounds.getX(), (float)bounds.getRight(), x);
+            y = juce::jlimit((float)bounds.getY(), (float)bounds.getBottom(), y);
+
+            validPoints.push_back({x, y});
         }
-        break;
-    }
-    case 1: // Dots pattern
-    {
-        for (int x = bounds.getX() + 10; x < bounds.getRight(); x += 15) {
-            for (int y = bounds.getY() + 10; y < bounds.getBottom(); y += 15) {
-                g.fillEllipse(x - 1, y - 1, 2, 2);
+
+        // Draw the clipped contour
+        if (validPoints.size() > 3) {
+            juce::Path contourPath;
+            contourPath.startNewSubPath(validPoints[0]);
+
+            for (size_t i = 1; i < validPoints.size(); ++i) {
+                contourPath.lineTo(validPoints[i]);
             }
+
+            // Check if we should close the path by looking at the original unclipped points
+            float originalX1 = center.x + std::cos(0) * contourDistance;
+            float originalY1 = center.y + std::sin(0) * contourDistance;
+            float originalX2 = center.x + std::cos(juce::MathConstants<float>::twoPi) * contourDistance;
+            float originalY2 = center.y + std::sin(juce::MathConstants<float>::twoPi) * contourDistance;
+
+            // If both start and end points would be within bounds (unclipped), close the path
+            bool startInBounds = (originalX1 >= bounds.getX() && originalX1 <= bounds.getRight() &&
+                                originalY1 >= bounds.getY() && originalY1 <= bounds.getBottom());
+            bool endInBounds = (originalX2 >= bounds.getX() && originalX2 <= bounds.getRight() &&
+                              originalY2 >= bounds.getY() && originalY2 <= bounds.getBottom());
+
+            if (startInBounds && endInBounds) {
+                contourPath.closeSubPath();
+            }
+
+            // Use consistent stroke width for clean look
+            float strokeWidth = isBypassed ? 0.8f : 1.2f;
+            g.strokePath(contourPath, juce::PathStrokeType(strokeWidth));
         }
-        break;
-    }
-    case 2: // Wave pattern
-    {
-        juce::Path wavePath;
-        wavePath.startNewSubPath(bounds.getX(), bounds.getCentreY());
-        for (int x = bounds.getX(); x < bounds.getRight(); x += 5) {
-            float y = bounds.getCentreY() + 10 * std::sin((x - bounds.getX()) * 0.1f);
-            wavePath.lineTo(x, y);
-        }
-        g.strokePath(wavePath, juce::PathStrokeType(1.5f));
-        break;
-    }
-    case 3: // Grid pattern
-    {
-        for (int x = bounds.getX(); x < bounds.getRight(); x += 25) {
-            g.drawLine(x, bounds.getY(), x, bounds.getBottom(), 0.5f);
-        }
-        for (int y = bounds.getY(); y < bounds.getBottom(); y += 25) {
-            g.drawLine(bounds.getX(), y, bounds.getRight(), y, 0.5f);
-        }
-        break;
-    }
     }
 }
 
@@ -656,8 +729,9 @@ void PluginChainComponent::PluginSlot::drawPluginIcon(juce::Graphics &g, const j
     if (iconArea.isEmpty())
         return;
 
-    // Draw icon based on plugin type
-    g.setColour(accentColour.withAlpha(isBypassed ? 0.5f : 1.0f));
+    // Use white color for visibility against black background
+    juce::Colour iconColor = isBypassed ? juce::Colour(0xff666666) : juce::Colours::white;
+    g.setColour(iconColor);
 
     if (pluginInfo.isInstrument) {
         // Draw musical note icon for instruments
@@ -685,7 +759,7 @@ void PluginChainComponent::PluginSlot::drawPluginIcon(juce::Graphics &g, const j
             wavePath.lineTo(x, y);
         }
 
-        g.strokePath(wavePath, juce::PathStrokeType(2.0f));
+        g.strokePath(wavePath, juce::PathStrokeType(3.0f)); // Thicker stroke for visibility
     }
 }
 
@@ -755,79 +829,98 @@ void PluginChainComponent::PluginSlot::drawStatusIndicator(juce::Graphics &g, co
     g.drawEllipse(indicatorBounds, isStatusIndicatorHovered ? 1.5f : 1.0f);
 }
 
+void PluginChainComponent::PluginSlot::drawChromaticAberrationText(juce::Graphics &g, const juce::Rectangle<int> &bounds) {
+    // This method is no longer used - text is now drawn by the labels themselves
+    // The new horizontal layout uses standard JUCE labels positioned in resized()
+}
+
 //==============================================================================
 // PluginBrowser Implementation
 //==============================================================================
 PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost &host)
     : pluginHost(host), searchPathsModel(*this), tabs(juce::TabbedButtonBar::TabsAtTop) {
-    // Setup tabs
+    // Setup tabs with modern styling
     addAndMakeVisible(tabs);
-    tabs.setTabBarDepth(30);
+    tabs.setTabBarDepth(30); // Taller tabs for better proportions
 
-    // Plugin List Tab
-    pluginListTab.addAndMakeVisible(headerLabel);
+    // Style the tab bar with futuristic colors and smaller text
+    tabs.setColour(juce::TabbedComponent::backgroundColourId, juce::Colour(0xff0a0a0a));
+    tabs.setColour(juce::TabbedComponent::outlineColourId, juce::Colour(0xff333333));
+    tabs.setColour(juce::TabbedButtonBar::tabOutlineColourId, juce::Colour(0xff444444));
+    tabs.setColour(juce::TabbedButtonBar::tabTextColourId, juce::Colour(0xffaaaaaa));
+    tabs.setColour(juce::TabbedButtonBar::frontTextColourId, juce::Colours::white);
+
+    // Plugin List Tab - remove redundant header
     pluginListTab.addAndMakeVisible(pluginList);
     pluginListTab.addAndMakeVisible(refreshButton);
 
-    headerLabel.setText("Available Plugins", juce::dontSendNotification);
-    headerLabel.setFont(juce::Font(16.0f, juce::Font::bold));
-    headerLabel.setJustificationType(juce::Justification::centred);
-    headerLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-
-    refreshButton.setButtonText("Refresh Plugins");
-    refreshButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    // Modern button styling with gradient-like effect
+    refreshButton.setButtonText("REFRESH PLUGINS");
+    refreshButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a2a));
+    refreshButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff00d4ff));
     refreshButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    refreshButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
     refreshButton.addListener(this);
 
-    pluginList.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    pluginList.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+    // Modern list styling
+    pluginList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff0f0f0f));
+    pluginList.setColour(juce::ListBox::outlineColourId, juce::Colour(0xff333333));
     pluginList.setModel(this);
     pluginList.setMultipleSelectionEnabled(false);
-    pluginList.setRowHeight(40);
+    pluginList.setRowHeight(50); // Taller rows for better readability
 
-    tabs.addTab("Plugins", juce::Colour(0xff1e1e1e), &pluginListTab, false);
+    tabs.addTab("PLUGINS", juce::Colour(0xff1a1a1a), &pluginListTab, false);
 
-    // Search Paths Tab
-    searchPathsTab.addAndMakeVisible(searchPathsLabel);
+    // Search Paths Tab - remove redundant header
     searchPathsTab.addAndMakeVisible(searchPathsList);
     searchPathsTab.addAndMakeVisible(addPathButton);
     searchPathsTab.addAndMakeVisible(removePathButton);
     searchPathsTab.addAndMakeVisible(resetToDefaultsButton);
 
-    searchPathsLabel.setText("VST Search Paths", juce::dontSendNotification);
-    searchPathsLabel.setFont(juce::Font(16.0f, juce::Font::bold));
-    searchPathsLabel.setJustificationType(juce::Justification::centred);
-    searchPathsLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    // Modern button styling with different accent colors
+    addPathButton.setButtonText("ADD PATH");
+    removePathButton.setButtonText("REMOVE PATH");
+    resetToDefaultsButton.setButtonText("RESET TO DEFAULTS");
 
-    addPathButton.setButtonText("Add Path");
-    removePathButton.setButtonText("Remove Path");
-    resetToDefaultsButton.setButtonText("Reset to Defaults");
-
-    // Style search paths buttons to match main app theme
-    addPathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    // Green accent for add button
+    addPathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a2a));
+    addPathButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff00ff88));
     addPathButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    removePathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    addPathButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+
+    // Red accent for remove button
+    removePathButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a2a));
+    removePathButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff4444));
     removePathButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-    resetToDefaultsButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
+    removePathButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+
+    // Orange accent for reset button
+    resetToDefaultsButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2a2a2a));
+    resetToDefaultsButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffffaa00));
     resetToDefaultsButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    resetToDefaultsButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
 
     addPathButton.addListener(this);
     removePathButton.addListener(this);
     resetToDefaultsButton.addListener(this);
 
-    searchPathsList.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
-    searchPathsList.setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
+    // Modern list styling
+    searchPathsList.setColour(juce::ListBox::backgroundColourId, juce::Colour(0xff0f0f0f));
+    searchPathsList.setColour(juce::ListBox::outlineColourId, juce::Colour(0xff333333));
     searchPathsList.setModel(&searchPathsModel);
     searchPathsList.setMultipleSelectionEnabled(false);
-    searchPathsList.setRowHeight(30);
+    searchPathsList.setRowHeight(50); // Taller rows for better readability
 
-    tabs.addTab("Search Paths", juce::Colour(0xff1e1e1e), &searchPathsTab, false);
+    tabs.addTab("SEARCH PATHS", juce::Colour(0xff1a1a1a), &searchPathsTab, false);
 
-    // Close button
+    // Modern close button with transparent background
     addAndMakeVisible(closeButton);
-    closeButton.setButtonText("x"); // Use × symbol for close button
-    closeButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e1e1e));
-    closeButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    closeButton.setButtonText("X");
+    closeButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    closeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff4444).withAlpha(0.3f));
+    closeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffaaaaaa));
+    closeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    closeButton.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     closeButton.addListener(this);
 }
 
@@ -843,39 +936,55 @@ PluginChainComponent::PluginBrowser::~PluginBrowser() {
 }
 
 void PluginChainComponent::PluginBrowser::paint(juce::Graphics &g) {
-    // Black background matching the main app
+    // Black background matching the main app exactly
     g.fillAll(juce::Colour(0xff0a0a0a));
+
+    // Draw button bar separators for active tab
+    auto tabBounds = tabs.getBounds().toFloat();
+    auto contentBounds = tabBounds;
+    contentBounds.removeFromTop(tabs.getTabBarDepth());
+
+    // Draw separator line above button bar
+    auto buttonBarTop = contentBounds.getBottom() - 50;
+    g.setColour(juce::Colour(0xff333333));
+    g.drawHorizontalLine(buttonBarTop, contentBounds.getX(), contentBounds.getRight());
+
+    // Add subtle highlight above the separator
+    g.setColour(juce::Colour(0xff555555).withAlpha(0.5f));
+    g.drawHorizontalLine(buttonBarTop - 1, contentBounds.getX(), contentBounds.getRight());
 }
 
 void PluginChainComponent::PluginBrowser::resized() {
-    auto bounds = getLocalBounds().reduced(5); // Smaller margins
+    auto bounds = getLocalBounds().reduced(8);
 
     // Main tabs area
     tabs.setBounds(bounds);
 
-    // Position close button aligned with tab bar (top right)
+    // Position close button in the top-right corner of the tab bar area
     auto tabBarBounds = tabs.getBounds();
     closeButton.setBounds(tabBarBounds.getRight() - 32, tabBarBounds.getY() + 2, 28, 26);
 
-    // Layout for Plugin List Tab
-    auto pluginListBounds = pluginListTab.getLocalBounds().reduced(10);
-    headerLabel.setBounds(pluginListBounds.removeFromTop(30));
+    // Layout for Plugin List Tab - list takes full space, button bar at bottom
+    auto pluginListBounds = pluginListTab.getLocalBounds();
 
-    auto pluginButtonArea = pluginListBounds.removeFromBottom(35);
-    refreshButton.setBounds(pluginButtonArea.removeFromLeft(120).reduced(5));
+    // Create bottom button bar
+    auto pluginButtonBar = pluginListBounds.removeFromBottom(50);
+    refreshButton.setBounds(pluginButtonBar.removeFromLeft(140).reduced(8));
 
-    pluginList.setBounds(pluginListBounds.reduced(5));
+    // List takes remaining space with no padding
+    pluginList.setBounds(pluginListBounds);
 
-    // Layout for Search Paths Tab
-    auto searchPathsBounds = searchPathsTab.getLocalBounds().reduced(10);
-    searchPathsLabel.setBounds(searchPathsBounds.removeFromTop(30));
+    // Layout for Search Paths Tab - list takes full space, button bar at bottom
+    auto searchPathsBounds = searchPathsTab.getLocalBounds();
 
-    auto pathButtonArea = searchPathsBounds.removeFromBottom(35);
-    addPathButton.setBounds(pathButtonArea.removeFromLeft(80).reduced(5));
-    removePathButton.setBounds(pathButtonArea.removeFromLeft(100).reduced(5));
-    resetToDefaultsButton.setBounds(pathButtonArea.removeFromRight(130).reduced(5));
+    // Create bottom button bar with all three buttons
+    auto pathButtonBar = searchPathsBounds.removeFromBottom(50);
+    addPathButton.setBounds(pathButtonBar.removeFromLeft(90).reduced(6));
+    removePathButton.setBounds(pathButtonBar.removeFromLeft(120).reduced(6));
+    resetToDefaultsButton.setBounds(pathButtonBar.removeFromRight(150).reduced(6));
 
-    searchPathsList.setBounds(searchPathsBounds.reduced(5));
+    // List takes remaining space with no padding
+    searchPathsList.setBounds(searchPathsBounds);
 }
 
 int PluginChainComponent::PluginBrowser::getNumRows() {
@@ -890,34 +999,51 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
                                                            bool rowIsSelected) {
     auto bounds = juce::Rectangle<float>(0, 0, width, height);
 
-    // Modern list item styling with rounded corners and more padding
+    // Modern list item styling with rounded corners and gradients
     if (rowIsSelected) {
-        // Selected item with white highlight
-        g.setColour(juce::Colours::white.withAlpha(0.15f));
-        g.fillRoundedRectangle(bounds.reduced(4), 4.0f);
+        // Selected item with cyan gradient
+        juce::ColourGradient selectedGradient(
+            juce::Colour(0xff00d4ff).withAlpha(0.3f), bounds.getTopLeft(),
+            juce::Colour(0xff0088cc).withAlpha(0.2f), bounds.getBottomLeft(),
+            false
+        );
+        g.setGradientFill(selectedGradient);
+        g.fillRect(bounds);
 
-        // Subtle border for selected item
-        g.setColour(juce::Colours::white.withAlpha(0.3f));
-        g.drawRoundedRectangle(bounds.reduced(4), 4.0f, 1.0f);
+        // Bright border for selected item
+        g.setColour(juce::Colour(0xff00d4ff).withAlpha(0.8f));
+        g.drawRect(bounds, 2.0f);
     } else {
-        // Subtle hover effect for non-selected items
-        g.setColour(juce::Colour(0xff1e1e1e));
-        g.fillRoundedRectangle(bounds.reduced(4), 4.0f);
+        // Subtle dark background for non-selected items
+        g.setColour(juce::Colour(0xff1a1a1a).withAlpha(0.8f));
+        g.fillRect(bounds);
+
+        // Subtle border
+        g.setColour(juce::Colour(0xff333333).withAlpha(0.5f));
+        g.drawRect(bounds, 1.0f);
     }
 
-    // Modern text styling with more padding
-    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffe0e0e0));
-
     if (isLoadingPlugins && rowNumber == 0) {
-        // Show loading indicator as first item when scanning
-        g.setColour(juce::Colours::orange);
-        juce::String loadingText = "Scanning for plugins...";
-        g.drawText(loadingText, 20, 0, width - 40, height, juce::Justification::centredLeft);
+        // Show loading indicator with animated style
+        g.setColour(juce::Colour(0xffffaa00)); // Orange for loading
+        g.setFont(juce::Font("Arial", 14.0f, juce::Font::bold));
+        juce::String loadingText = "SCANNING FOR PLUGINS...";
+        g.drawText(loadingText, 24, 0, width - 48, height, juce::Justification::centredLeft);
     } else if (rowNumber < pluginHost.getAvailablePlugins().size()) {
         auto &plugin = pluginHost.getAvailablePlugins().getReference(rowNumber);
 
-        juce::String text = plugin.name + " - " + plugin.manufacturer;
-        g.drawText(text, 20, 0, width - 40, height, juce::Justification::centredLeft);
+        // Plugin name in bold, larger font
+        g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xfff0f0f0));
+        g.setFont(juce::Font("Arial Black", 14.0f, juce::Font::bold));
+
+        auto textBounds = bounds.reduced(24, 8);
+        auto nameArea = textBounds.removeFromTop(textBounds.getHeight() * 0.6f);
+        g.drawText(plugin.name.toUpperCase(), nameArea.toNearestInt(), juce::Justification::centredLeft);
+
+        // Manufacturer in smaller, lighter font
+        g.setColour(rowIsSelected ? juce::Colour(0xffcccccc) : juce::Colour(0xffaaaaaa));
+        g.setFont(juce::Font("Arial", 11.0f, juce::Font::plain));
+        g.drawText(plugin.manufacturer, textBounds.toNearestInt(), juce::Justification::centredLeft);
     }
 }
 
@@ -1036,23 +1162,44 @@ void PluginChainComponent::PluginBrowser::SearchPathsListModel::paintListBoxItem
                                                                                  bool rowIsSelected) {
     auto bounds = juce::Rectangle<float>(0, 0, width, height);
 
+    // Modern styling matching the plugin list
     if (rowIsSelected) {
-        g.setColour(juce::Colours::white.withAlpha(0.15f));
-        g.fillRoundedRectangle(bounds.reduced(2), 3.0f);
+        // Selected item with orange gradient (different from plugin list)
+        juce::ColourGradient selectedGradient(
+            juce::Colour(0xffffaa00).withAlpha(0.3f), bounds.getTopLeft(),
+            juce::Colour(0xffcc8800).withAlpha(0.2f), bounds.getBottomLeft(),
+            false
+        );
+        g.setGradientFill(selectedGradient);
+        g.fillRect(bounds);
 
-        g.setColour(juce::Colours::white.withAlpha(0.3f));
-        g.drawRoundedRectangle(bounds.reduced(2), 3.0f, 1.0f);
+        // Bright border for selected item
+        g.setColour(juce::Colour(0xffffaa00).withAlpha(0.8f));
+        g.drawRect(bounds, 2.0f);
     } else {
-        g.setColour(juce::Colour(0xff1e1e1e));
-        g.fillRoundedRectangle(bounds.reduced(2), 3.0f);
+        // Subtle dark background for non-selected items
+        g.setColour(juce::Colour(0xff1a1a1a).withAlpha(0.8f));
+        g.fillRect(bounds);
+
+        // Subtle border
+        g.setColour(juce::Colour(0xff333333).withAlpha(0.5f));
+        g.drawRect(bounds, 1.0f);
     }
 
-    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffe0e0e0));
+    // Modern text styling
+    g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xfff0f0f0));
+    g.setFont(juce::Font("Consolas", 12.0f, juce::Font::plain)); // Monospace for paths
 
     if (owner.userConfig != nullptr) {
         auto paths = owner.userConfig->getVSTSearchPaths();
         if (rowNumber < paths.size()) {
-            g.drawText(paths[rowNumber], 10, 0, width - 20, height, juce::Justification::centredLeft);
+            // Add folder icon
+            g.setColour(rowIsSelected ? juce::Colour(0xffffaa00) : juce::Colour(0xffaaaaaa));
+            g.drawText(juce::String(rowNumber + 1) + ".", 16, 0, 20, height, juce::Justification::centred);
+
+            // Draw path text
+            g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xfff0f0f0));
+            g.drawText(paths[rowNumber], 40, 0, width - 60, height, juce::Justification::centredLeft);
         }
     }
 }

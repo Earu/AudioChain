@@ -75,6 +75,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         bool isBypassed = false;
         bool isStatusIndicatorHovered = false;
         bool isDragOver = false;
+        bool isEmptySlotHovered = false;
         juce::Point<int> mouseDownPosition;
         juce::Colour slotColour;
         juce::Colour primaryColour;
@@ -88,6 +89,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         void drawProceduralPattern(juce::Graphics &g, const juce::Rectangle<int> &bounds);
         void drawPluginIcon(juce::Graphics &g, const juce::Rectangle<int> &iconArea);
         void drawStatusIndicator(juce::Graphics &g, const juce::Rectangle<int> &bounds);
+        void drawChromaticAberrationText(juce::Graphics &g, const juce::Rectangle<int> &bounds);
         juce::Colour getHashBasedColour(const juce::String &text, float saturation = 0.7f, float brightness = 0.8f);
         juce::Colour getPluginTypeColour(bool isInstrument);
 
