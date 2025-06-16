@@ -137,8 +137,14 @@ class DarkLookAndFeel : public juce::LookAndFeel_V4 {
 
     // Override to provide larger font for buttons (especially CTA)
     juce::Font getTextButtonFont(juce::TextButton &button, int buttonHeight) override {
+        // Check if this is the close button (contains X symbol)
+        if (button.getButtonText() == "X")
+            return juce::Font(18.0f, juce::Font::bold); // Larger font for close button
+        // Check if this is the minimize button (contains − symbol)
+        else if (button.getButtonText() == "−")
+            return juce::Font(18.0f, juce::Font::bold); // Larger font for minimize button
         // Check if this is likely the CTA button (wider than normal buttons)
-        if (button.getWidth() > 150)
+        else if (button.getWidth() > 150)
             return juce::Font(16.0f, juce::Font::bold); // Larger, bold font for CTA
         else
             return juce::Font(14.0f); // Normal font for other buttons
@@ -150,6 +156,35 @@ class DarkLookAndFeel : public juce::LookAndFeel_V4 {
             return juce::MouseCursor::PointingHandCursor;
 
         return juce::LookAndFeel_V4::getMouseCursorFor(component);
+    }
+
+    // Override to draw custom icons for the processing button
+    void drawButtonText(juce::Graphics &g, juce::TextButton &button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override {
+        // Check if this is the processing toggle button (empty text and square)
+        if (button.getButtonText().isEmpty() && button.getWidth() == button.getHeight()) {
+            auto bounds = button.getLocalBounds().toFloat().reduced(6);
+            bool isActive = button.getToggleState();
+
+            if (isActive) {
+                // Draw stop icon (square)
+                g.setColour(juce::Colours::black);
+                g.fillRect(bounds.reduced(4));
+            } else {
+                // Draw play icon (triangle)
+                g.setColour(juce::Colours::black); // Dark icon on light background
+                juce::Path playIcon;
+                auto center = bounds.getCentre();
+                auto size = bounds.getWidth() * 0.6f; // Increased from 0.4f to 0.6f for fatter arrow
+
+                playIcon.addTriangle(center.x - size/2, center.y - size/2,
+                                   center.x - size/2, center.y + size/2,
+                                   center.x + size/2, center.y);
+                g.fillPath(playIcon);
+            }
+        } else {
+            // Use default text drawing for other buttons
+            juce::LookAndFeel_V4::drawButtonText(g, button, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+        }
     }
 };
 
@@ -180,6 +215,11 @@ class MainComponent : public juce::Component, public juce::Timer, public juce::A
     //==============================================================================
     void timerCallback() override;
 
+    //==============================================================================
+    // Mouse events for window dragging
+    void mouseDown(const juce::MouseEvent &event) override;
+    void mouseDrag(const juce::MouseEvent &event) override;
+
   private:
     //==============================================================================
     // Custom LookAndFeel
@@ -206,6 +246,9 @@ class MainComponent : public juce::Component, public juce::Timer, public juce::A
     juce::ComboBox outputDeviceComboBox;
     juce::Label outputDeviceLabel;
     juce::TextButton processingToggleButton;
+    juce::TextButton closeButton;
+    juce::TextButton minimizeButton;
+    juce::Label titleLabel;
 
     // Input level meters
     juce::Label leftLevelLabel;
@@ -221,6 +264,11 @@ class MainComponent : public juce::Component, public juce::Timer, public juce::A
     // Status indicator bounds
     juce::Rectangle<int> inputStatusIndicatorBounds;
     juce::Rectangle<int> outputStatusIndicatorBounds;
+
+    // Header area bounds for window dragging
+    juce::Rectangle<int> headerBounds;
+    juce::Rectangle<int> titleBounds; // For engraved title effect
+    juce::ComponentDragger windowDragger;
 
     // Layout
     void setupLayout();

@@ -37,8 +37,9 @@ MainComponent::MainComponent() {
     addAndMakeVisible(outputDeviceLabel);
     addAndMakeVisible(outputDeviceComboBox);
     addAndMakeVisible(processingToggleButton);
-    // Remove titleLabel - redundant with window title
-    // addAndMakeVisible(titleLabel);
+    addAndMakeVisible(closeButton);
+    addAndMakeVisible(minimizeButton);
+    addAndMakeVisible(titleLabel);
     addAndMakeVisible(leftLevelLabel);
     addAndMakeVisible(rightLevelLabel);
     addAndMakeVisible(*pluginChainComponent);
@@ -73,13 +74,34 @@ MainComponent::MainComponent() {
 
     // Configure buttons with modern styling
 
-    // Modern white CTA styling for processing toggle button
-    processingToggleButton.setButtonText("Start");
-    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colours::white);
-    processingToggleButton.setColour(juce::TextButton::buttonOnColourId,
-                                     juce::Colour(0xffff6666)); // Light red when active
-    processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff0a0a0a)); // Dark text on white
-    processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white); // White text when active
+    // Modern square icon button styling for processing toggle - lighter to show it's interactive
+    processingToggleButton.setButtonText(""); // No text, we'll draw custom icons
+    processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffe0e0e0)); // Light gray, close to white
+    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff00ff88)); // Green when active
+    processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+    processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
+
+    // Modern close button styling
+    closeButton.setButtonText("X");
+    closeButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    closeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff4444).withAlpha(0.3f));
+    closeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffaaaaaa));
+    closeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    closeButton.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+
+    // Modern minimize button styling
+    minimizeButton.setButtonText("_");
+    minimizeButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    minimizeButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff666666).withAlpha(0.3f));
+    minimizeButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffaaaaaa));
+    minimizeButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    minimizeButton.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+
+    // App title styling - make it transparent so we can draw the engraved effect manually
+    titleLabel.setText("AudioChain", juce::dontSendNotification);
+    titleLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+    titleLabel.setColour(juce::Label::textColourId, juce::Colours::transparentBlack); // Hide default text
+    titleLabel.setJustificationType(juce::Justification::centredLeft);
 
     // Enhanced combo boxes with modern dark theme
     inputDeviceComboBox.setTextWhenNothingSelected("Select input device...");
@@ -106,6 +128,16 @@ MainComponent::MainComponent() {
     processingToggleButton.onClick = [this] { toggleProcessing(); };
     inputDeviceComboBox.onChange = [this] { inputDeviceChanged(); };
     outputDeviceComboBox.onChange = [this] { outputDeviceChanged(); };
+    closeButton.onClick = [this] {
+        DBG("Close button clicked - shutting down application");
+        juce::JUCEApplication::getInstance()->systemRequestedQuit();
+    };
+    minimizeButton.onClick = [this] {
+        DBG("Minimize button clicked");
+        if (auto* window = findParentComponentOfClass<juce::DocumentWindow>()) {
+            window->minimiseButtonPressed();
+        }
+    };
 
     // Layout the components
     setupLayout();
@@ -297,7 +329,7 @@ void MainComponent::paint(juce::Graphics &g) {
     g.fillAll(juce::Colour(0xff0a0a0a));
 
     // Enhanced header with realistic plastic/amp-style background
-    juce::Rectangle<int> headerArea(0, 0, getWidth(), 120);
+    juce::Rectangle<int> headerArea(0, 0, getWidth(), 110);
 
     // Realistic plastic gradient background
     juce::ColourGradient plasticGradient(
@@ -335,11 +367,30 @@ void MainComponent::paint(juce::Graphics &g) {
 
     // Modern header border with white accent - thicker and more prominent
     g.setColour(juce::Colours::white.withAlpha(0.4f));
-    g.drawLine(0, 120, getWidth(), 120, 3);
+    g.drawLine(0, 110, getWidth(), 110, 3);
 
     // Add subtle accent line at top
     g.setColour(juce::Colours::white.withAlpha(0.1f));
     g.drawLine(0, 0, getWidth(), 0, 1);
+
+        // Draw engraved title effect
+    if (!titleBounds.isEmpty()) {
+        // Use a more stylized font - try different typefaces for better aesthetics
+        juce::Font titleFont("Arial Black", 16.0f, juce::Font::bold);
+        g.setFont(titleFont);
+
+        // Draw shadow (darker, offset down and right)
+        g.setColour(juce::Colours::black.withAlpha(0.6f));
+        g.drawText("AudioChain", titleBounds.translated(1, 1), juce::Justification::centredLeft);
+
+        // Draw highlight (lighter, offset up and left)
+        g.setColour(juce::Colours::white.withAlpha(0.15f));
+        g.drawText("AudioChain", titleBounds.translated(-1, -1), juce::Justification::centredLeft);
+
+        // Draw main text (medium tone, centered)
+        g.setColour(juce::Colour(0xff888888));
+        g.drawText("AudioChain", titleBounds, juce::Justification::centredLeft);
+    }
 
     // Modern tech-style status indicators
     if (!inputStatusIndicatorBounds.isEmpty()) {
@@ -560,16 +611,36 @@ void MainComponent::resized() { setupLayout(); }
 void MainComponent::setupLayout() {
     auto area = getLocalBounds();
 
-    // Header area - expanded layout for better spacing and less compact feel
-    auto headerArea = area.removeFromTop(120);
+    // Header area - compact layout
+    auto headerArea = area.removeFromTop(110); // Reduced from 140 to 110 for more compact layout
+    headerBounds = headerArea; // Store for window dragging
 
-    // Device selection area (labels + dropdowns + status indicators) - more vertical space
-    auto deviceArea = headerArea.removeFromTop(70);
-    deviceArea.removeFromTop(10); // Add more top padding for breathing room
+        // Window controls area at the top
+    auto windowControlsArea = headerArea.removeFromTop(30);
 
-    // Split device area horizontally for input and output
-    auto inputDeviceArea = deviceArea.removeFromLeft(getWidth() / 2 - 10); // Half width minus some margin
-    auto outputDeviceArea = deviceArea;                                    // Remaining space
+    // Title on the left side of window controls
+    auto titleArea = juce::Rectangle<int>(10, 5, 200, 25);
+    titleLabel.setBounds(titleArea);
+    titleBounds = titleArea; // Store for engraved drawing
+
+    // Window control buttons on the right
+    auto closeButtonArea = juce::Rectangle<int>(getWidth() - 45, 5, 35, 25);
+    closeButton.setBounds(closeButtonArea);
+
+    auto minimizeButtonArea = juce::Rectangle<int>(getWidth() - 85, 5, 35, 25);
+    minimizeButton.setBounds(minimizeButtonArea);
+
+    // Device selection area (labels + dropdowns + status indicators) - fixed height
+    auto deviceArea = headerArea.removeFromTop(70); // Fixed height instead of using all remaining space
+    deviceArea.removeFromTop(5); // Small top padding
+
+    // Processing button on the far right (fixed width)
+    auto buttonSize = 30;
+    auto processingArea = deviceArea.removeFromRight(buttonSize + 10); // Button + padding
+
+    // Split remaining device area equally between input and output
+    auto inputDeviceArea = deviceArea.removeFromLeft(deviceArea.getWidth() / 2);
+    auto outputDeviceArea = deviceArea; // Remaining space
 
     // Input device section (label above dropdown) - more vertical space
     auto inputLabelArea = inputDeviceArea.removeFromTop(25);
@@ -593,13 +664,13 @@ void MainComponent::setupLayout() {
     outputStatusIndicatorBounds = outputControlArea.reduced(5);
     outputStatusIndicatorBounds = outputStatusIndicatorBounds.withSizeKeepingCentre(10, 10);
 
-    // CTA Button row - centered and prominent with more breathing room
-    auto buttonRow = headerArea.removeFromTop(40);
-    buttonRow.removeFromTop(10); // Add more spacing for less compact feel
+    // Processing button section (aligned with device selections)
+    auto processingLabelArea = processingArea.removeFromTop(25);
+    // No label needed for processing button, just use the space for alignment
 
-    // Center the CTA button
-    auto buttonWidth = 200;
-    auto buttonArea = buttonRow.withSizeKeepingCentre(buttonWidth, 25);
+    auto processingControlArea = processingArea.removeFromTop(35);
+    // Center the square button in the processing area
+    auto buttonArea = processingControlArea.withSizeKeepingCentre(buttonSize, buttonSize);
     processingToggleButton.setBounds(buttonArea);
 
     // Main content area with level meters on the right
@@ -637,6 +708,39 @@ void MainComponent::setupLayout() {
 
     leftMeterBounds = leftMeterArea.reduced(2);
     rightMeterBounds = rightMeterArea.reduced(2);
+}
+
+//==============================================================================
+// Mouse events for window dragging
+void MainComponent::mouseDown(const juce::MouseEvent &event) {
+    // Check if the click is in the header area
+    if (headerBounds.contains(event.getPosition())) {
+        // Check if we're not clicking on any interactive controls
+        auto localPoint = event.getPosition();
+
+        // Don't drag if clicking on combo boxes, buttons, or status indicators
+        if (inputDeviceComboBox.getBounds().contains(localPoint) ||
+            outputDeviceComboBox.getBounds().contains(localPoint) ||
+            processingToggleButton.getBounds().contains(localPoint) ||
+            closeButton.getBounds().contains(localPoint) ||
+            minimizeButton.getBounds().contains(localPoint) ||
+            inputStatusIndicatorBounds.contains(localPoint) ||
+            outputStatusIndicatorBounds.contains(localPoint)) {
+            return;
+        }
+
+        // Start window dragging
+        if (auto* window = findParentComponentOfClass<juce::DocumentWindow>()) {
+            windowDragger.startDraggingComponent(window, event);
+        }
+    }
+}
+
+void MainComponent::mouseDrag(const juce::MouseEvent &event) {
+    // Continue dragging if we started it
+    if (auto* window = findParentComponentOfClass<juce::DocumentWindow>()) {
+        windowDragger.dragComponent(window, event, nullptr);
+    }
 }
 
 //==============================================================================
@@ -707,7 +811,6 @@ void MainComponent::toggleProcessing() {
         }
 
         isProcessingActive = false;
-        processingToggleButton.setButtonText("Start");
         processingToggleButton.setToggleState(false, juce::dontSendNotification);
         inputDeviceComboBox.setEnabled(true);
         outputDeviceComboBox.setEnabled(true);
@@ -728,7 +831,6 @@ void MainComponent::toggleProcessing() {
             audioInputManager->getAudioDeviceManager().addAudioCallback(this);
 
             isProcessingActive = true;
-            processingToggleButton.setButtonText("Stop");
             processingToggleButton.setToggleState(true, juce::dontSendNotification);
             inputDeviceComboBox.setEnabled(false);
             outputDeviceComboBox.setEnabled(false);
