@@ -16,11 +16,11 @@ class DarkLookAndFeel : public juce::LookAndFeel_V4 {
         setColour(juce::ResizableWindow::backgroundColourId, juce::Colour(0xff0f0f0f));
         setColour(juce::DocumentWindow::backgroundColourId, juce::Colour(0xff0f0f0f));
 
-        // ComboBox colors with modern styling
-        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff1e1e1e));
+        // ComboBox colors with darker styling to match plastic header
+        setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff141414));
         setColour(juce::ComboBox::textColourId, juce::Colour(0xffe0e0e0));
-        setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff404040));
-        setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff2a2a2a));
+        setColour(juce::ComboBox::outlineColourId, juce::Colour(0xff303030));
+        setColour(juce::ComboBox::buttonColourId, juce::Colour(0xff1a1a1a));
         setColour(juce::ComboBox::arrowColourId, juce::Colours::white);
 
         // PopupMenu colors - clean monochromatic theme
@@ -98,13 +98,13 @@ class DarkLookAndFeel : public juce::LookAndFeel_V4 {
                       juce::ComboBox &box) override {
         juce::Rectangle<float> boxBounds(0, 0, width, height);
 
-        // Gradient background
-        juce::ColourGradient gradient(juce::Colour(0xff2a2a2a), 0, 0, juce::Colour(0xff1e1e1e), 0, height, false);
+        // Darker gradient background to match plastic header
+        juce::ColourGradient gradient(juce::Colour(0xff1a1a1a), 0, 0, juce::Colour(0xff141414), 0, height, false);
         g.setGradientFill(gradient);
         g.fillRoundedRectangle(boxBounds, 4.0f);
 
         // Modern border with white accent
-        g.setColour(box.hasKeyboardFocus(true) ? juce::Colours::white : juce::Colour(0xff404040));
+        g.setColour(box.hasKeyboardFocus(true) ? juce::Colours::white : juce::Colour(0xff303030));
         g.drawRoundedRectangle(boxBounds, 4.0f, 1.0f);
 
         // Enhanced arrow with modern styling

@@ -1,5 +1,7 @@
 #include "VST3PluginHost.h"
 #include "UserConfig.h"
+#include <vector>
+#include <cmath>
 
 //==============================================================================
 VST3PluginHost::VST3PluginHost() {

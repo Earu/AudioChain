@@ -296,15 +296,42 @@ void MainComponent::paint(juce::Graphics &g) {
     // Ultra-modern flat background - deep space black
     g.fillAll(juce::Colour(0xff0a0a0a));
 
-    // Enhanced header with tech grid pattern - increased height for better spacing
+    // Enhanced header with realistic plastic/amp-style background
     juce::Rectangle<int> headerArea(0, 0, getWidth(), 120);
 
-    // Header base - slightly lighter than main background
-    g.setColour(juce::Colour(0xff151515));
+    // Realistic plastic gradient background
+    juce::ColourGradient plasticGradient(
+        juce::Colour(0xff3a3a3a), headerArea.getX(), headerArea.getY(),
+        juce::Colour(0xff1a1a1a), headerArea.getX(), headerArea.getBottom(),
+        false
+    );
+
+    // Add subtle color variation for more realistic plastic look
+    plasticGradient.addColour(0.3, juce::Colour(0xff2e2e2e));
+    plasticGradient.addColour(0.7, juce::Colour(0xff252525));
+
+    g.setGradientFill(plasticGradient);
     g.fillRect(headerArea);
 
-    // Draw modern tech grid pattern in header
-    drawTechGrid(g, headerArea);
+    // Add grain texture for realistic plastic surface
+    juce::Random grainRandom(42); // Fixed seed for consistent grain
+    g.setColour(juce::Colours::white.withAlpha(0.02f));
+
+    for (int i = 0; i < headerArea.getWidth() * headerArea.getHeight() / 8; ++i) {
+        int x = grainRandom.nextInt(headerArea.getWidth());
+        int y = grainRandom.nextInt(headerArea.getHeight());
+        g.fillRect(x, y, 1, 1);
+    }
+
+    // Add darker grain for depth
+    grainRandom.setSeed(84);
+    g.setColour(juce::Colours::black.withAlpha(0.03f));
+
+    for (int i = 0; i < headerArea.getWidth() * headerArea.getHeight() / 12; ++i) {
+        int x = grainRandom.nextInt(headerArea.getWidth());
+        int y = grainRandom.nextInt(headerArea.getHeight());
+        g.fillRect(x, y, 1, 1);
+    }
 
     // Modern header border with white accent - thicker and more prominent
     g.setColour(juce::Colours::white.withAlpha(0.4f));
