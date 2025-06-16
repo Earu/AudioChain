@@ -2,6 +2,9 @@
 
 AudioChain is a JUCE-based application that processes audio input through a customizable VST3 plugin chain. This enables real-time audio processing and effects for any audio source on your system, supporting both macOS and Windows platforms.
 
+![image](https://github.com/user-attachments/assets/c2374a4a-3fb8-4b78-977c-84ad483ba88d)
+
+
 ## System Requirements
 
 ### macOS
