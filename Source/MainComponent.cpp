@@ -1,8 +1,7 @@
 #include "MainComponent.h"
 
 //==============================================================================
-MainComponent::MainComponent()
-{
+MainComponent::MainComponent() {
     DBG("MainComponent constructor starting...");
 
     // Apply custom dark theme LookAndFeel
@@ -77,7 +76,8 @@ MainComponent::MainComponent()
     // Modern white CTA styling for processing toggle button
     processingToggleButton.setButtonText("Start");
     processingToggleButton.setColour(juce::TextButton::buttonColourId, juce::Colours::white);
-    processingToggleButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xffff6666)); // Light red when active
+    processingToggleButton.setColour(juce::TextButton::buttonOnColourId,
+                                     juce::Colour(0xffff6666)); // Light red when active
     processingToggleButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff0a0a0a)); // Dark text on white
     processingToggleButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white); // White text when active
 
@@ -121,28 +121,26 @@ MainComponent::MainComponent()
 
     DBG("MainComponent constructor finished");
 
-    // Check microphone permissions on macOS
-    #if JUCE_MAC
+// Check microphone permissions on macOS
+#if JUCE_MAC
     DBG("Checking macOS microphone permissions...");
     // Note: In a real app, you'd use proper permission checking APIs
     // For now, this is just a reminder to check system preferences
     DBG("Please ensure AudioChain has microphone permissions in System Settings → Privacy & Security → Microphone");
-    #elif JUCE_WINDOWS
+#elif JUCE_WINDOWS
     DBG("Checking Windows microphone permissions...");
     DBG("Please ensure AudioChain has microphone permissions in Settings → Privacy → Microphone");
-    #endif
+#endif
 
     // Set window size
     setSize(800, 700);
 }
 
-MainComponent::~MainComponent()
-{
+MainComponent::~MainComponent() {
     stopTimer();
 
     // Remove ourselves as audio callback and stop processing
-    if (audioInputManager && isProcessingActive)
-    {
+    if (audioInputManager && isProcessingActive) {
         audioInputManager->getAudioDeviceManager().removeAudioCallback(this);
         audioInputManager->stop();
 
@@ -156,160 +154,132 @@ MainComponent::~MainComponent()
 
 //==============================================================================
 // AudioIODeviceCallback implementation
-void MainComponent::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
-                                                     int numInputChannels,
-                                                     float* const* outputChannelData,
-                                                     int numOutputChannels,
+void MainComponent::audioDeviceIOCallbackWithContext(const float *const *inputChannelData, int numInputChannels,
+                                                     float *const *outputChannelData, int numOutputChannels,
                                                      int numSamples,
-                                                     const juce::AudioIODeviceCallbackContext& context)
-{
+                                                     const juce::AudioIODeviceCallbackContext &context) {
     static int callbackCount = 0;
     if (++callbackCount % 1000 == 0) // Log every 1000 callbacks to avoid spam
     {
-        DBG("Audio callback #" + juce::String(callbackCount) +
-            " - Input channels: " + juce::String(numInputChannels) +
-            ", Output channels: " + juce::String(numOutputChannels) +
-            ", Samples: " + juce::String(numSamples) +
+        DBG("Audio callback #" + juce::String(callbackCount) + " - Input channels: " + juce::String(numInputChannels) +
+            ", Output channels: " + juce::String(numOutputChannels) + ", Samples: " + juce::String(numSamples) +
             ", inputChannelData: " + juce::String(inputChannelData ? "valid" : "null") +
             ", isProcessingActive: " + juce::String(isProcessingActive ? "true" : "false"));
     }
 
     // Clear output buffers first
-    for (int channel = 0; channel < numOutputChannels; ++channel)
-    {
+    for (int channel = 0; channel < numOutputChannels; ++channel) {
         if (outputChannelData[channel])
             juce::FloatVectorOperations::clear(outputChannelData[channel], numSamples);
     }
 
     // Update input levels for metering
-    if (audioInputManager && isProcessingActive && inputChannelData)
-    {
+    if (audioInputManager && isProcessingActive && inputChannelData) {
         audioInputManager->updateInputLevels(inputChannelData, numInputChannels, numSamples);
 
         // Debug: Check if we actually have audio signal every 2000 callbacks
-        if (callbackCount % 2000 == 0)
-        {
+        if (callbackCount % 2000 == 0) {
             float maxSample = 0.0f;
             float sumSamples = 0.0f;
             int nonZeroSamples = 0;
 
-            for (int channel = 0; channel < numInputChannels; ++channel)
-    {
-                if (inputChannelData[channel])
-                {
-                    for (int sample = 0; sample < numSamples; ++sample)
-                    {
+            for (int channel = 0; channel < numInputChannels; ++channel) {
+                if (inputChannelData[channel]) {
+                    for (int sample = 0; sample < numSamples; ++sample) {
                         float sampleValue = inputChannelData[channel][sample];
                         float absSample = std::abs(sampleValue);
                         maxSample = juce::jmax(maxSample, absSample);
                         sumSamples += absSample;
-                        if (absSample > 0.000001f) nonZeroSamples++;
+                        if (absSample > 0.000001f)
+                            nonZeroSamples++;
 
                         // Log first few samples for debugging
-                        if (sample < 5 && channel == 0)
-                        {
+                        if (sample < 5 && channel == 0) {
                             DBG("Sample[" + juce::String(sample) + "] = " + juce::String(sampleValue, 8));
                         }
                     }
-                }
-                else
-                {
+                } else {
                     DBG("Channel " + juce::String(channel) + " inputChannelData is NULL!");
                 }
             }
 
-            float averageLevel = (numInputChannels * numSamples > 0) ? sumSamples / (numInputChannels * numSamples) : 0.0f;
+            float averageLevel =
+                (numInputChannels * numSamples > 0) ? sumSamples / (numInputChannels * numSamples) : 0.0f;
 
-            DBG("Audio analysis - Max: " + juce::String(maxSample, 6) +
-                " (" + juce::String(juce::Decibels::gainToDecibels(maxSample, -60.0f), 1) + "dB)" +
-                ", Avg: " + juce::String(averageLevel, 6) +
-                ", Non-zero samples: " + juce::String(nonZeroSamples) + "/" + juce::String(numInputChannels * numSamples));
+            DBG("Audio analysis - Max: " + juce::String(maxSample, 6) + " (" +
+                juce::String(juce::Decibels::gainToDecibels(maxSample, -60.0f), 1) + "dB)" +
+                ", Avg: " + juce::String(averageLevel, 6) + ", Non-zero samples: " + juce::String(nonZeroSamples) +
+                "/" + juce::String(numInputChannels * numSamples));
         }
     }
 
     // Process audio if we're active (removed numOutputChannels > 0 requirement since we have 0 output channels)
-    if (isProcessingActive && inputChannelData && numInputChannels > 0)
-    {
+    if (isProcessingActive && inputChannelData && numInputChannels > 0) {
         // Create a temporary buffer for processing - ensure we have at least 2 channels for stereo processing
         int processingChannels = juce::jmax(juce::jmax(numInputChannels, numOutputChannels), 2);
         juce::AudioBuffer<float> processingBuffer(processingChannels, numSamples);
 
         // Copy input to processing buffer
-        for (int channel = 0; channel < numInputChannels && channel < processingBuffer.getNumChannels(); ++channel)
-        {
-            if (inputChannelData[channel])
-            {
+        for (int channel = 0; channel < numInputChannels && channel < processingBuffer.getNumChannels(); ++channel) {
+            if (inputChannelData[channel]) {
                 processingBuffer.copyFrom(channel, 0, inputChannelData[channel], numSamples);
             }
         }
 
         // Handle mono-to-stereo conversion: if we only have 1 input channel, duplicate it to channel 1
-        if (numInputChannels == 1 && processingBuffer.getNumChannels() >= 2)
-        {
-            if (inputChannelData[0])
-            {
+        if (numInputChannels == 1 && processingBuffer.getNumChannels() >= 2) {
+            if (inputChannelData[0]) {
                 processingBuffer.copyFrom(1, 0, inputChannelData[0], numSamples);
                 DBG("Duplicating mono input to stereo for processing");
             }
         }
 
         // Process through VST plugins
-        if (pluginHost)
-        {
+        if (pluginHost) {
             pluginHost->processAudio(processingBuffer);
         }
 
         // Process through our audio processor
-        if (audioProcessor)
-        {
+        if (audioProcessor) {
             audioProcessor->processAudio(processingBuffer);
         }
 
         // Copy processed audio to output
-        for (int channel = 0; channel < numOutputChannels && channel < processingBuffer.getNumChannels(); ++channel)
-        {
-            if (outputChannelData[channel])
-            {
-                juce::FloatVectorOperations::copy(outputChannelData[channel],
-                                                processingBuffer.getReadPointer(channel),
-                                                numSamples);
+        for (int channel = 0; channel < numOutputChannels && channel < processingBuffer.getNumChannels(); ++channel) {
+            if (outputChannelData[channel]) {
+                juce::FloatVectorOperations::copy(outputChannelData[channel], processingBuffer.getReadPointer(channel),
+                                                  numSamples);
             }
         }
     }
 }
 
-void MainComponent::audioDeviceAboutToStart(juce::AudioIODevice* device)
-            {
+void MainComponent::audioDeviceAboutToStart(juce::AudioIODevice *device) {
     DBG("Audio device about to start: " + device->getName());
 
     double sampleRate = device->getCurrentSampleRate();
     int bufferSize = device->getCurrentBufferSizeSamples();
 
     // Prepare audio processor
-    if (audioProcessor)
-    {
+    if (audioProcessor) {
         audioProcessor->prepareToPlay(bufferSize, sampleRate);
     }
 
     // Prepare plugin host
-    if (pluginHost)
-    {
+    if (pluginHost) {
         pluginHost->prepareToPlay(bufferSize, sampleRate);
     }
 
     // Configure audio input manager
-    if (audioInputManager)
-    {
+    if (audioInputManager) {
         audioInputManager->setSampleRate(sampleRate);
         audioInputManager->setBufferSize(bufferSize);
     }
 
-    DBG("Audio prepared - Sample rate: " + juce::String(sampleRate) +
-        ", Buffer size: " + juce::String(bufferSize));
+    DBG("Audio prepared - Sample rate: " + juce::String(sampleRate) + ", Buffer size: " + juce::String(bufferSize));
 }
 
-void MainComponent::audioDeviceStopped()
-{
+void MainComponent::audioDeviceStopped() {
     DBG("Audio device stopped");
 
     if (audioProcessor)
@@ -320,8 +290,7 @@ void MainComponent::audioDeviceStopped()
 }
 
 //==============================================================================
-void MainComponent::paint(juce::Graphics& g)
-{
+void MainComponent::paint(juce::Graphics &g) {
     auto bounds = getLocalBounds();
 
     // Ultra-modern flat background - deep space black
@@ -346,13 +315,11 @@ void MainComponent::paint(juce::Graphics& g)
     g.drawLine(0, 0, getWidth(), 0, 1);
 
     // Modern tech-style status indicators
-    if (!inputStatusIndicatorBounds.isEmpty())
-    {
+    if (!inputStatusIndicatorBounds.isEmpty()) {
         drawTechStatusIndicator(g, inputStatusIndicatorBounds, isProcessingActive);
     }
 
-    if (!outputStatusIndicatorBounds.isEmpty())
-    {
+    if (!outputStatusIndicatorBounds.isEmpty()) {
         drawTechStatusIndicator(g, outputStatusIndicatorBounds, isProcessingActive);
     }
 
@@ -361,9 +328,9 @@ void MainComponent::paint(juce::Graphics& g)
     drawEnhancedLevelMeter(g, rightMeterBounds, audioInputManager ? audioInputManager->getInputLevel(1) : 0.0f);
 }
 
-void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectangle<int>& bounds, float level)
-{
-    if (bounds.isEmpty()) return;
+void MainComponent::drawEnhancedLevelMeter(juce::Graphics &g, const juce::Rectangle<int> &bounds, float level) {
+    if (bounds.isEmpty())
+        return;
 
     auto meterBounds = bounds.toFloat();
 
@@ -375,39 +342,30 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
     g.setColour(juce::Colours::white.withAlpha(0.2f));
     g.drawRect(meterBounds, 1.0f);
 
-    if (isProcessingActive && level > 0.0f)
-    {
+    if (isProcessingActive && level > 0.0f) {
         // Convert to dB and normalize
         float levelDb = juce::Decibels::gainToDecibels(level, -60.0f);
         float normalizedLevel = juce::jmap(levelDb, -60.0f, 0.0f, 0.0f, 1.0f);
         normalizedLevel = juce::jlimit(0.0f, 1.0f, normalizedLevel);
 
-        if (normalizedLevel > 0.0f)
-        {
+        if (normalizedLevel > 0.0f) {
             auto fillArea = meterBounds.reduced(2);
             float fillHeight = fillArea.getHeight() * normalizedLevel;
             auto fillRect = juce::Rectangle<float>(fillArea.getX(), fillArea.getBottom() - fillHeight,
-                                                 fillArea.getWidth(), fillHeight);
+                                                   fillArea.getWidth(), fillHeight);
 
             // Modern monochromatic colors based on level - white/gray scale with minimal color
             juce::Colour levelColour;
-            if (normalizedLevel > 0.85f)
-            {
+            if (normalizedLevel > 0.85f) {
                 // Danger zone - subtle red tint
                 levelColour = juce::Colour(0xffff6666);
-            }
-            else if (normalizedLevel > 0.7f)
-            {
+            } else if (normalizedLevel > 0.7f) {
                 // Warning zone - light gray
                 levelColour = juce::Colour(0xffcccccc);
-            }
-            else if (normalizedLevel > 0.5f)
-            {
+            } else if (normalizedLevel > 0.5f) {
                 // Moderate zone - medium gray
                 levelColour = juce::Colour(0xffaaaaaa);
-            }
-            else
-            {
+            } else {
                 // Safe zone - white
                 levelColour = juce::Colours::white;
             }
@@ -417,8 +375,7 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
             g.fillRect(fillRect);
 
             // Add white accent border for high levels
-            if (normalizedLevel > 0.7f)
-            {
+            if (normalizedLevel > 0.7f) {
                 g.setColour(juce::Colours::white.withAlpha(0.4f));
                 g.drawRect(fillRect, 1.0f);
             }
@@ -429,8 +386,7 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
     g.setColour(juce::Colour(0xff666666).withAlpha(0.7f));
     std::vector<float> dbMarks = {-60.0f, -40.0f, -20.0f, -10.0f, -5.0f, 0.0f};
 
-    for (float db : dbMarks)
-    {
+    for (float db : dbMarks) {
         float normalizedPos = juce::jmap(db, -60.0f, 0.0f, 1.0f, 0.0f);
         int yPos = meterBounds.getY() + (int)(meterBounds.getHeight() * normalizedPos);
 
@@ -439,19 +395,16 @@ void MainComponent::drawEnhancedLevelMeter(juce::Graphics& g, const juce::Rectan
         g.drawLine(meterBounds.getRight() + 2, yPos, meterBounds.getRight() + 8, yPos, 1.5f);
 
         // Add dB labels for key marks
-        if (db == 0.0f || db == -20.0f || db == -40.0f)
-        {
+        if (db == 0.0f || db == -20.0f || db == -40.0f) {
             g.setFont(juce::Font(9.0f));
             g.setColour(juce::Colour(0xff999999));
             juce::String dbText = (db == 0.0f) ? "0" : juce::String((int)db);
-            g.drawText(dbText, meterBounds.getRight() + 10, yPos - 6, 20, 12,
-                      juce::Justification::centredLeft);
+            g.drawText(dbText, meterBounds.getRight() + 10, yPos - 6, 20, 12, juce::Justification::centredLeft);
         }
     }
 }
 
-void MainComponent::drawTechGrid(juce::Graphics& g, const juce::Rectangle<int>& area)
-{
+void MainComponent::drawTechGrid(juce::Graphics &g, const juce::Rectangle<int> &area) {
     // Modern tech grid pattern with subtle lines and accent highlights
 
     // Grid parameters for a sleek, tech aesthetic
@@ -463,36 +416,28 @@ void MainComponent::drawTechGrid(juce::Graphics& g, const juce::Rectangle<int>& 
     g.setColour(juce::Colour(0xff2a2a2a).withAlpha(0.3f));
 
     // Draw vertical grid lines
-    for (int x = area.getX(); x <= area.getRight(); x += gridSize)
-    {
+    for (int x = area.getX(); x <= area.getRight(); x += gridSize) {
         // Every 5th line is slightly more prominent
         bool isAccentLine = ((x - area.getX()) / gridSize) % 5 == 0;
 
-        if (isAccentLine)
-        {
+        if (isAccentLine) {
             g.setColour(juce::Colours::white.withAlpha(0.08f));
             g.drawLine(x, area.getY(), x, area.getBottom(), accentLineThickness);
-        }
-        else
-        {
+        } else {
             g.setColour(juce::Colour(0xff404040).withAlpha(0.2f));
             g.drawLine(x, area.getY(), x, area.getBottom(), lineThickness);
         }
     }
 
     // Draw horizontal grid lines
-    for (int y = area.getY(); y <= area.getBottom(); y += gridSize)
-    {
+    for (int y = area.getY(); y <= area.getBottom(); y += gridSize) {
         // Every 5th line is slightly more prominent
         bool isAccentLine = ((y - area.getY()) / gridSize) % 5 == 0;
 
-        if (isAccentLine)
-        {
+        if (isAccentLine) {
             g.setColour(juce::Colours::white.withAlpha(0.08f));
             g.drawLine(area.getX(), y, area.getRight(), y, accentLineThickness);
-        }
-        else
-        {
+        } else {
             g.setColour(juce::Colour(0xff404040).withAlpha(0.2f));
             g.drawLine(area.getX(), y, area.getRight(), y, lineThickness);
         }
@@ -510,32 +455,37 @@ void MainComponent::drawTechGrid(juce::Graphics& g, const juce::Rectangle<int>& 
     g.drawLine(area.getX() + 5, area.getY() + 5, area.getX() + 5, area.getY() + 5 + cornerSize, cornerThickness);
 
     // Top-right corner
-    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5 - cornerSize, area.getY() + 5, cornerThickness);
-    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5, area.getY() + 5 + cornerSize, cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5 - cornerSize, area.getY() + 5,
+               cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getY() + 5, area.getRight() - 5, area.getY() + 5 + cornerSize,
+               cornerThickness);
 
     // Bottom-left corner
-    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5 + cornerSize, area.getBottom() - 5, cornerThickness);
-    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5, area.getBottom() - 5 - cornerSize, cornerThickness);
+    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5 + cornerSize, area.getBottom() - 5,
+               cornerThickness);
+    g.drawLine(area.getX() + 5, area.getBottom() - 5, area.getX() + 5, area.getBottom() - 5 - cornerSize,
+               cornerThickness);
 
     // Bottom-right corner
-    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5 - cornerSize, area.getBottom() - 5, cornerThickness);
-    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5, area.getBottom() - 5 - cornerSize, cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5 - cornerSize, area.getBottom() - 5,
+               cornerThickness);
+    g.drawLine(area.getRight() - 5, area.getBottom() - 5, area.getRight() - 5, area.getBottom() - 5 - cornerSize,
+               cornerThickness);
 
     // Add subtle scan line effect
     static float scanLineOffset = 0.0f;
     scanLineOffset += 0.5f; // Animate the scan line
-    if (scanLineOffset > area.getHeight()) scanLineOffset = 0.0f;
+    if (scanLineOffset > area.getHeight())
+        scanLineOffset = 0.0f;
 
     g.setColour(juce::Colours::white.withAlpha(0.03f));
     g.drawLine(area.getX(), area.getY() + scanLineOffset, area.getRight(), area.getY() + scanLineOffset, 1.0f);
 }
 
-void MainComponent::drawTechStatusIndicator(juce::Graphics& g, const juce::Rectangle<int>& bounds, bool isActive)
-{
+void MainComponent::drawTechStatusIndicator(juce::Graphics &g, const juce::Rectangle<int> &bounds, bool isActive) {
     auto indicatorBounds = bounds.toFloat();
 
-    if (isActive)
-    {
+    if (isActive) {
         // Active state - modern tech style with sharp edges
 
         // Outer ring - white
@@ -561,9 +511,7 @@ void MainComponent::drawTechStatusIndicator(juce::Graphics& g, const juce::Recta
         g.drawLine(centerX + radius - 3, centerY, centerX + radius, centerY, 1.0f);
         g.drawLine(centerX, centerY - radius, centerX, centerY - radius + 3, 1.0f);
         g.drawLine(centerX, centerY + radius - 3, centerX, centerY + radius, 1.0f);
-    }
-    else
-    {
+    } else {
         // Inactive state - minimal, dark
 
         // Dark background
@@ -580,13 +528,9 @@ void MainComponent::drawTechStatusIndicator(juce::Graphics& g, const juce::Recta
     }
 }
 
-void MainComponent::resized()
-{
-    setupLayout();
-}
+void MainComponent::resized() { setupLayout(); }
 
-void MainComponent::setupLayout()
-{
+void MainComponent::setupLayout() {
     auto area = getLocalBounds();
 
     // Header area - expanded layout for better spacing and less compact feel
@@ -598,7 +542,7 @@ void MainComponent::setupLayout()
 
     // Split device area horizontally for input and output
     auto inputDeviceArea = deviceArea.removeFromLeft(getWidth() / 2 - 10); // Half width minus some margin
-    auto outputDeviceArea = deviceArea; // Remaining space
+    auto outputDeviceArea = deviceArea;                                    // Remaining space
 
     // Input device section (label above dropdown) - more vertical space
     auto inputLabelArea = inputDeviceArea.removeFromTop(25);
@@ -641,9 +585,9 @@ void MainComponent::setupLayout()
     pluginChainComponent->setBounds(contentArea);
 
     // Center the level meters in the available space
-    auto meterWidth = 25; // Width of each meter
-    auto meterSpacing = 10; // Space between meters
-    auto totalMeterWidth = (meterWidth * 2) + meterSpacing; // Total width needed for both meters
+    auto meterWidth = 25;                                                  // Width of each meter
+    auto meterSpacing = 10;                                                // Space between meters
+    auto totalMeterWidth = (meterWidth * 2) + meterSpacing;                // Total width needed for both meters
     auto centerOffset = (levelMeterArea.getWidth() - totalMeterWidth) / 2; // Center offset
 
     // Create centered meter area
@@ -651,8 +595,8 @@ void MainComponent::setupLayout()
 
     // Level meter labels (top part of centered area)
     auto labelArea = centeredMeterArea.removeFromTop(20);
-    auto leftLabelArea = labelArea.removeFromLeft(meterWidth + meterSpacing/2);
-    auto rightLabelArea = labelArea.removeFromLeft(meterWidth + meterSpacing/2);
+    auto leftLabelArea = labelArea.removeFromLeft(meterWidth + meterSpacing / 2);
+    auto rightLabelArea = labelArea.removeFromLeft(meterWidth + meterSpacing / 2);
 
     leftLevelLabel.setBounds(leftLabelArea);
     rightLevelLabel.setBounds(rightLabelArea);
@@ -669,8 +613,7 @@ void MainComponent::setupLayout()
 }
 
 //==============================================================================
-void MainComponent::timerCallback()
-{
+void MainComponent::timerCallback() {
     // Update level meter labels (just show L and R, the visual meters show the levels)
     leftLevelLabel.setText("L", juce::dontSendNotification);
     rightLevelLabel.setText("R", juce::dontSendNotification);
@@ -681,41 +624,32 @@ void MainComponent::timerCallback()
 
 // Status is now shown via visual indicator circle
 
-void MainComponent::updateInputDeviceList()
-{
+void MainComponent::updateInputDeviceList() {
     inputDeviceComboBox.clear();
     outputDeviceComboBox.clear();
 
-    if (audioInputManager)
-    {
+    if (audioInputManager) {
         // Populate input devices
         auto inputDevices = audioInputManager->getAvailableInputDevices();
 
-        for (int i = 0; i < inputDevices.size(); ++i)
-    {
+        for (int i = 0; i < inputDevices.size(); ++i) {
             inputDeviceComboBox.addItem(inputDevices[i], i + 1);
         }
 
-        if (inputDevices.size() > 0)
-        {
+        if (inputDevices.size() > 0) {
             // Try to select microphone by default instead of BlackHole for testing
             int micIndex = -1;
-            for (int i = 0; i < inputDevices.size(); ++i)
-            {
-                if (inputDevices[i].containsIgnoreCase("microphone"))
-                {
+            for (int i = 0; i < inputDevices.size(); ++i) {
+                if (inputDevices[i].containsIgnoreCase("microphone")) {
                     micIndex = i;
                     break;
                 }
             }
 
-            if (micIndex >= 0)
-            {
+            if (micIndex >= 0) {
                 inputDeviceComboBox.setSelectedItemIndex(micIndex);
                 DBG("Auto-selected microphone for testing");
-    }
-    else
-    {
+            } else {
                 inputDeviceComboBox.setSelectedItemIndex(0);
             }
             inputDeviceChanged(); // Set the selected device
@@ -724,13 +658,11 @@ void MainComponent::updateInputDeviceList()
         // Populate output devices
         auto outputDevices = audioInputManager->getAvailableOutputDevices();
 
-        for (int i = 0; i < outputDevices.size(); ++i)
-        {
+        for (int i = 0; i < outputDevices.size(); ++i) {
             outputDeviceComboBox.addItem(outputDevices[i], i + 1);
         }
 
-        if (outputDevices.size() > 0)
-        {
+        if (outputDevices.size() > 0) {
             outputDeviceComboBox.setSelectedItemIndex(0);
             outputDeviceChanged(); // Set the selected device
         }
@@ -738,17 +670,14 @@ void MainComponent::updateInputDeviceList()
 }
 
 //==============================================================================
-void MainComponent::toggleProcessing()
-{
-    if (isProcessingActive)
-    {
+void MainComponent::toggleProcessing() {
+    if (isProcessingActive) {
         // Stop processing
         // Remove ourselves as the audio callback
-        if (audioInputManager)
-        {
+        if (audioInputManager) {
             audioInputManager->getAudioDeviceManager().removeAudioCallback(this);
             audioInputManager->stop();
-    }
+        }
 
         isProcessingActive = false;
         processingToggleButton.setButtonText("Start");
@@ -760,18 +689,14 @@ void MainComponent::toggleProcessing()
             audioProcessor->stop();
 
         DBG("Audio processing stopped");
-    }
-    else
-    {
+    } else {
         // Start processing
-        if (!audioInputManager || !audioInputManager->hasValidInputDevice())
-    {
+        if (!audioInputManager || !audioInputManager->hasValidInputDevice()) {
             DBG("No input device selected");
             return;
         }
 
-        if (audioInputManager->start())
-        {
+        if (audioInputManager->start()) {
             // Add ourselves as the audio callback
             audioInputManager->getAudioDeviceManager().addAudioCallback(this);
 
@@ -786,55 +711,43 @@ void MainComponent::toggleProcessing()
                 audioProcessor->start();
 
             DBG("Audio processing started from: " + audioInputManager->getCurrentInputDevice());
-            }
-            else
-            {
+        } else {
             DBG("Failed to start audio processing");
         }
     }
 }
 
-void MainComponent::inputDeviceChanged()
-{
+void MainComponent::inputDeviceChanged() {
     int selectedIndex = inputDeviceComboBox.getSelectedItemIndex();
 
     DBG("Input device selection changed - index: " + juce::String(selectedIndex));
 
-    if (selectedIndex >= 0 && audioInputManager)
-    {
+    if (selectedIndex >= 0 && audioInputManager) {
         juce::String deviceName = inputDeviceComboBox.getItemText(selectedIndex);
 
         DBG("User selected device: '" + deviceName + "'");
 
-        if (audioInputManager->setInputDevice(deviceName))
-        {
+        if (audioInputManager->setInputDevice(deviceName)) {
             DBG("Input device changed to: " + deviceName);
-        }
-        else
-        {
+        } else {
             DBG("Failed to set input device: " + deviceName);
         }
     }
 }
 
-void MainComponent::outputDeviceChanged()
-{
+void MainComponent::outputDeviceChanged() {
     int selectedIndex = outputDeviceComboBox.getSelectedItemIndex();
 
     DBG("Output device selection changed - index: " + juce::String(selectedIndex));
 
-    if (selectedIndex >= 0 && audioInputManager)
-    {
+    if (selectedIndex >= 0 && audioInputManager) {
         juce::String deviceName = outputDeviceComboBox.getItemText(selectedIndex);
 
         DBG("User selected output device: '" + deviceName + "'");
 
-        if (audioInputManager->setOutputDevice(deviceName))
-        {
+        if (audioInputManager->setOutputDevice(deviceName)) {
             DBG("Output device changed to: " + deviceName);
-        }
-        else
-        {
+        } else {
             DBG("Failed to set output device: " + deviceName);
         }
     }
