@@ -28,6 +28,11 @@ class VST3PluginHost {
         bool isInstrument = false;
         bool hasEditor = false;
 
+        // Architecture information
+        bool is64Bit = true;
+        bool isCompatible = true;
+        juce::String architectureString;
+
         // Store the complete JUCE plugin description for accurate loading
         juce::PluginDescription juceDescription;
         bool hasJuceDescription = false;
@@ -62,6 +67,11 @@ class VST3PluginHost {
     // Plugin scanning
     void scanForPlugins();
     void scanForPlugins(const juce::StringArray &searchPaths);
+    void scanForPluginsAsync();
+    void scanForPluginsSync();  // Force synchronous scan
+    void refreshPluginCache();
+    bool isPluginCacheValid() const { return pluginCacheValid; }
+    bool isScanning() const { return isCurrentlyScanning; }
     const juce::Array<PluginInfo> &getAvailablePlugins() const { return availablePlugins; }
 
     // Configuration
@@ -78,6 +88,7 @@ class VST3PluginHost {
     // Callbacks
     std::function<void()> onPluginChainChanged;
     std::function<void(int, const juce::String &)> onPluginError;
+    std::function<void()> onPluginScanComplete;
 
   private:
     //==============================================================================
@@ -109,14 +120,44 @@ class VST3PluginHost {
     // Configuration
     UserConfig *userConfig = nullptr;
 
+    // Plugin cache and scanning state
+    bool pluginCacheValid = false;
+    bool isCurrentlyScanning = false;
+    std::unique_ptr<juce::Thread> scanningThread;
+
+    // Main thread scanning (timer-based)
+    std::unique_ptr<juce::Timer> scanningTimer;
+    juce::Array<juce::File> filesToScan;
+    int currentScanIndex = 0;
+
     // Helper methods
     PluginInfo createPluginInfo(const juce::PluginDescription &description);
     bool validatePlugin(juce::AudioProcessor *processor);
     void initializePlugin(PluginInstance *instance);
 
+    // Architecture detection
+    bool isHostArchitecture64Bit() const;
+    bool isPluginArchitectureCompatible(const juce::File &pluginFile) const;
+    juce::String getPluginArchitecture(const juce::File &pluginFile) const;
+    juce::String analyzeWindowsPEArchitecture(const juce::File &pluginFile) const;
+    juce::String analyzeMacBinaryArchitecture(const juce::File &binaryFile) const;
+
+    // Plugin scanning (internal)
+    void performPluginScan();
+    void scanPluginsInPaths(const juce::StringArray &searchPaths, juce::Array<PluginInfo> &pluginList);
+    void processVST3File(const juce::File &vstFile, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList);
+    void processVST3Bundle(const juce::File &vstBundle, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList);
+
     // Plugin scanning
-    void scanVST3Plugins();
     void addPluginToList(const juce::PluginDescription &description);
+
+    // Timer-based scanning (main thread)
+    void startMainThreadScan();
+    void scanNextPlugin();
+
+    // Forward declarations
+    class PluginScanningThread;
+    class PluginScanningTimer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VST3PluginHost)
 };

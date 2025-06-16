@@ -52,6 +52,7 @@ PluginChainComponent::PluginChainComponent(VST3PluginHost &pluginHost_) : plugin
     // Setup plugin host callbacks
     pluginHost.onPluginChainChanged = [this] { onPluginChainChanged(); };
     pluginHost.onPluginError = [this](int index, const juce::String &error) { onPluginError(index, error); };
+    pluginHost.onPluginScanComplete = [this] { onPluginScanComplete(); };
 
     // Start timer for updates
     startTimer(50); // Update every 50ms
@@ -209,6 +210,15 @@ void PluginChainComponent::onPluginChainChanged() { refreshPluginChain(); }
 void PluginChainComponent::onPluginError(int pluginIndex, const juce::String &error) {
     juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon, "Plugin Error",
                                            "Plugin " + juce::String(pluginIndex) + ": " + error, "OK");
+}
+
+void PluginChainComponent::onPluginScanComplete() {
+    DBG("Plugin scan completed - refreshing UI");
+
+    // Refresh the plugin browser if it's visible
+    if (pluginBrowser && pluginBrowser->isVisible()) {
+        pluginBrowser->onScanComplete();
+    }
 }
 
 void PluginChainComponent::handleDraggedPlugin(int fromSlot, int toSlot) {
@@ -759,7 +769,7 @@ PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost &host)
     pluginListTab.addAndMakeVisible(pluginList);
     pluginListTab.addAndMakeVisible(refreshButton);
 
-    headerLabel.setText("Available VST3 Plugins", juce::dontSendNotification);
+    headerLabel.setText("Available Plugins", juce::dontSendNotification);
     headerLabel.setFont(juce::Font(16.0f, juce::Font::bold));
     headerLabel.setJustificationType(juce::Justification::centred);
     headerLabel.setColour(juce::Label::textColourId, juce::Colours::white);
@@ -868,7 +878,13 @@ void PluginChainComponent::PluginBrowser::resized() {
     searchPathsList.setBounds(searchPathsBounds.reduced(5));
 }
 
-int PluginChainComponent::PluginBrowser::getNumRows() { return pluginHost.getAvailablePlugins().size(); }
+int PluginChainComponent::PluginBrowser::getNumRows() {
+    // Show at least 1 row when loading to display the loading message
+    if (isLoadingPlugins && pluginHost.getAvailablePlugins().size() == 0) {
+        return 1;
+    }
+    return pluginHost.getAvailablePlugins().size();
+}
 
 void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::Graphics &g, int width, int height,
                                                            bool rowIsSelected) {
@@ -892,7 +908,12 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
     // Modern text styling with more padding
     g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xffe0e0e0));
 
-    if (rowNumber < pluginHost.getAvailablePlugins().size()) {
+    if (isLoadingPlugins && rowNumber == 0) {
+        // Show loading indicator as first item when scanning
+        g.setColour(juce::Colours::orange);
+        juce::String loadingText = "Scanning for plugins...";
+        g.drawText(loadingText, 20, 0, width - 40, height, juce::Justification::centredLeft);
+    } else if (rowNumber < pluginHost.getAvailablePlugins().size()) {
         auto &plugin = pluginHost.getAvailablePlugins().getReference(rowNumber);
 
         juce::String text = plugin.name + " - " + plugin.manufacturer;
@@ -901,6 +922,11 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
 }
 
 void PluginChainComponent::PluginBrowser::listBoxItemDoubleClicked(int row, const juce::MouseEvent &) {
+    // Don't do anything if we're loading or if it's the loading indicator row
+    if (isLoadingPlugins && row == 0 && pluginHost.getAvailablePlugins().size() == 0) {
+        return;
+    }
+
     if (row >= 0 && row < pluginHost.getAvailablePlugins().size()) {
         auto &plugin = pluginHost.getAvailablePlugins().getReference(row);
         pluginHost.loadPlugin(plugin);
@@ -923,8 +949,18 @@ void PluginChainComponent::PluginBrowser::buttonClicked(juce::Button *button) {
 }
 
 void PluginChainComponent::PluginBrowser::refreshPluginList() {
-    pluginHost.scanForPlugins();
-    pluginList.updateContent();
+    if (pluginHost.isPluginCacheValid()) {
+        // Cache is valid, use it immediately
+        DBG("Plugin cache is valid, using cached results");
+        pluginList.updateContent();
+        isLoadingPlugins = false;
+    } else {
+        // Cache is invalid, start async scan
+        DBG("Plugin cache is invalid, starting async scan");
+        isLoadingPlugins = true;
+        pluginList.updateContent(); // Update to show loading state
+        pluginHost.scanForPluginsAsync();
+    }
 }
 
 void PluginChainComponent::PluginBrowser::setVisible(bool shouldBeVisible) {
@@ -935,8 +971,15 @@ void PluginChainComponent::PluginBrowser::setVisible(bool shouldBeVisible) {
     }
 }
 
+void PluginChainComponent::PluginBrowser::onScanComplete() {
+    DBG("PluginBrowser received scan complete notification");
+    isLoadingPlugins = false;
+    pluginList.updateContent();
+    repaint(); // Refresh the UI
+}
+
 void PluginChainComponent::PluginBrowser::showAddPathDialog() {
-    fileChooser = std::make_unique<juce::FileChooser>("Select VST3 Directory",
+    fileChooser = std::make_unique<juce::FileChooser>("Select Plugin Directory",
                                                       juce::File::getSpecialLocation(juce::File::userHomeDirectory));
 
     fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
