@@ -46,8 +46,9 @@ class AudioChainApplication : public juce::JUCEApplication {
             : DocumentWindow(name,
                              juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(
                                  juce::ResizableWindow::backgroundColourId),
-                             DocumentWindow::allButtons) {
-            setUsingNativeTitleBar(true);
+                             DocumentWindow::minimiseButton | DocumentWindow::maximiseButton) {
+            setUsingNativeTitleBar(false);
+            setTitleBarHeight(0); // Hide the title bar completely
             setContentOwned(new MainComponent(), true);
 
 #if JUCE_IOS || JUCE_ANDROID
