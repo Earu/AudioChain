@@ -1,0 +1,207 @@
+name: Build AudioChain
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Install JUCE
+      run: |
+        # Download and install JUCE
+        curl -L -o juce.zip https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-osx.zip
+        unzip juce.zip -d juce-temp
+        sudo mv juce-temp/JUCE /usr/local/JUCE
+        
+        # Make Projucer executable
+        sudo chmod +x /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer
+    
+    - name: Setup VST2 SDK (if available)
+      run: |
+        if [ -d "external/VST_SDK_2.4" ]; then
+          echo "VST2 SDK submodule detected, setting up headers..."
+          VST2_TARGET_DIR="/usr/local/JUCE/modules/juce_audio_processors/format_types/VST3_SDK/pluginterfaces/vst2.x"
+          sudo mkdir -p "$VST2_TARGET_DIR"
+          sudo cp -r external/VST_SDK_2.4/pluginterfaces/vst2.x/* "$VST2_TARGET_DIR/" || true
+          echo "VST2 headers setup complete"
+        else
+          echo "No VST2 SDK submodule found, skipping VST2 setup"
+        fi
+    
+    - name: Generate Xcode project
+      run: |
+        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
+    
+    - name: Build Debug
+      run: |
+        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj \
+                   -configuration Debug \
+                   -arch x86_64 \
+                   clean build
+    
+    - name: Build Release
+      run: |
+        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj \
+                   -configuration Release \
+                   -arch x86_64 \
+                   clean build
+    
+    - name: Create DMG (Release only)
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        # Create a DMG file for distribution
+        mkdir -p dmg-contents
+        cp -R Builds/MacOSX/build/Release/AudioChain.app dmg-contents/
+        
+        # Create DMG
+        hdiutil create -volname "AudioChain" \
+                       -srcfolder dmg-contents \
+                       -ov -format UDZO \
+                       AudioChain-macOS.dmg
+    
+    - name: Upload macOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: AudioChain-macOS
+        path: |
+          Builds/MacOSX/build/Debug/AudioChain.app
+          Builds/MacOSX/build/Release/AudioChain.app
+          AudioChain-macOS.dmg
+        if-no-files-found: ignore
+
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Setup Visual Studio
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Install JUCE
+      shell: powershell
+      run: |
+        # Download and install JUCE
+        Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-windows.zip" -OutFile "juce.zip"
+        Expand-Archive -Path "juce.zip" -DestinationPath "juce-temp"
+        Move-Item -Path "juce-temp\JUCE" -Destination "C:\JUCE"
+    
+    - name: Setup VST2 SDK (if available)
+      shell: powershell
+      run: |
+        if (Test-Path "external/VST_SDK_2.4") {
+          Write-Host "VST2 SDK submodule detected, setting up headers..."
+          $VST2_TARGET_DIR = "C:\JUCE\modules\juce_audio_processors\format_types\VST3_SDK\pluginterfaces\vst2.x"
+          New-Item -ItemType Directory -Force -Path $VST2_TARGET_DIR
+          Copy-Item -Path "external\VST_SDK_2.4\pluginterfaces\vst2.x\*" -Destination $VST2_TARGET_DIR -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "VST2 headers setup complete"
+        } else {
+          Write-Host "No VST2 SDK submodule found, skipping VST2 setup"
+        }
+    
+    - name: Generate Visual Studio project
+      shell: cmd
+      run: |
+        "C:\JUCE\Projucer.exe" --resave AudioChain.jucer
+    
+    - name: Build Debug
+      run: |
+        msbuild Builds/VisualStudio2022/AudioChain.sln /p:Configuration=Debug /p:Platform=x64 /m
+    
+    - name: Build Release
+      run: |
+        msbuild Builds/VisualStudio2022/AudioChain.sln /p:Configuration=Release /p:Platform=x64 /m
+    
+    - name: Package Windows build
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      shell: powershell
+      run: |
+        # Find the built executable
+        $exePath = Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Filter "AudioChain.exe" | Where-Object { $_.Directory.Name -eq "Release" } | Select-Object -First 1
+        
+        if ($exePath) {
+          Write-Host "Found executable at: $($exePath.FullName)"
+          $releaseDir = $exePath.Directory.FullName
+          
+          # Create distribution folder
+          New-Item -ItemType Directory -Force -Path "AudioChain-Windows-Release"
+          Copy-Item -Path "$releaseDir\*" -Destination "AudioChain-Windows-Release" -Recurse -Force
+          
+          # Create ZIP
+          Compress-Archive -Path "AudioChain-Windows-Release\*" -DestinationPath "AudioChain-Windows.zip"
+        } else {
+          Write-Host "Executable not found, listing build directories..."
+          Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Include "*.exe" | ForEach-Object { Write-Host $_.FullName }
+        }
+    
+    - name: Upload Windows artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: AudioChain-Windows
+        path: |
+          Builds/VisualStudio2022/**/Debug/**/*.exe
+          Builds/VisualStudio2022/**/Release/**/*.exe
+          AudioChain-Windows.zip
+        if-no-files-found: ignore
+
+  release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: AudioChain v${{ github.run_number }}
+        body: |
+          ## AudioChain Release v${{ github.run_number }}
+          
+          Cross-platform audio processing application with VST plugin chain support.
+          
+          ### Downloads
+          - **macOS**: AudioChain-macOS.dmg
+          - **Windows**: AudioChain-Windows.zip
+          
+          ### Features
+          - Real-time audio processing through VST plugin chains
+          - Support for VST2, VST3, and Audio Unit (macOS) plugins
+          - Cross-platform compatibility (macOS and Windows)
+          - Modern JUCE-based GUI
+          
+          Built from commit: ${{ github.sha }}
+        files: |
+          AudioChain-macOS/AudioChain-macOS.dmg
+          AudioChain-Windows/AudioChain-Windows.zip
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
