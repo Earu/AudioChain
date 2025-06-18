@@ -18,74 +18,26 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Install JUCE
-      run: |
-        # Download and install JUCE
-        curl -L "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-osx.zip" -o juce.zip
-        unzip juce.zip
-        sudo mv JUCE /usr/local/JUCE
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.22.x'
     
-    - name: Configure JUCE module paths and verify microphone permissions
+    - name: Configure CMake build
       run: |
-        # Update the .jucer file to set correct module paths for CI
-        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        
-        # Verify microphone permission is configured
-        echo "Verifying microphone permission configuration..."
-        if grep -q "NSMicrophoneUsageDescription" AudioChain.jucer; then
-          echo "✓ Microphone permission found in .jucer file"
-        else
-          echo "✗ Microphone permission not found - this may cause runtime issues"
-        fi
-    
-    - name: Setup VST2 SDK (if available)
-      run: |
-        if [ -d "external/VST_SDK_2.4" ]; then
-          echo "VST2 SDK submodule detected, setting up headers..."
-          VST2_TARGET_DIR="/usr/local/JUCE/modules/juce_audio_processors/format_types/VST3_SDK/pluginterfaces/vst2.x"
-          sudo mkdir -p "$VST2_TARGET_DIR"
-          sudo cp -r external/VST_SDK_2.4/pluginterfaces/vst2.x/* "$VST2_TARGET_DIR/" 2>/dev/null || true
-          echo "VST2 headers setup complete"
-        else
-          echo "No VST2 SDK submodule found, skipping VST2 setup"
-        fi
-    
-    - name: Generate Xcode project
-      run: |
-        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
     
     - name: Build Release
       run: |
-        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj -scheme AudioChain -configuration Release -archivePath AudioChain.xcarchive archive
-        xcodebuild -exportArchive -archivePath AudioChain.xcarchive -exportPath AudioChain-Export -exportOptionsPlist <(cat <<EOF
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>method</key>
-            <string>mac-application</string>
-            <key>signingStyle</key>
-            <string>automatic</string>
-        </dict>
-        </plist>
-        EOF
-        )
+        cd build
+        cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
     
     - name: Verify microphone permissions in built app
       run: |
-        # Find the built app
-        APP_PATH=$(find AudioChain-Export -name "*.app" -type d | head -1)
+        # Find the built app in the CMake build directory
+        APP_PATH=$(find build -name "*.app" -type d | head -1)
         
         if [ -n "$APP_PATH" ]; then
           echo "Checking Info.plist in: $APP_PATH"
@@ -110,6 +62,8 @@ jobs:
           fi
         else
           echo "⚠️  Warning: Built app not found, cannot verify permissions"
+          echo "Listing build directory contents:"
+          find build -type f -name "*.app" || find build -type d
         fi
     
     - name: Create DMG
@@ -118,8 +72,8 @@ jobs:
         # Install create-dmg for creating the DMG
         brew install create-dmg
         
-        # Find the built app
-        APP_PATH=$(find AudioChain-Export -name "*.app" -type d | head -1)
+        # Find the built app in the CMake build directory
+        APP_PATH=$(find build -name "*.app" -type d | head -1)
         
         if [ -n "$APP_PATH" ]; then
           echo "Found app at: $APP_PATH"
@@ -136,8 +90,8 @@ jobs:
             "AudioChain-macOS.dmg" \
             "$APP_PATH"
         else
-          echo "App not found, listing export contents..."
-          find AudioChain-Export -type f -name "*.app" || find AudioChain-Export -type d
+          echo "App not found, listing build directory contents..."
+          find build -type f -name "*.app" || find build -type d
         fi
     
     - name: Upload macOS artifacts
@@ -146,7 +100,7 @@ jobs:
         name: AudioChain-macOS
         path: |
           AudioChain-macOS.dmg
-          AudioChain-Export/**/*.app
+          build/**/*.app
         if-no-files-found: ignore
 
   build-windows:
