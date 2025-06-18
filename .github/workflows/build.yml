@@ -43,26 +43,22 @@ jobs:
     
     - name: Configure JUCE module paths
       run: |
-        # Update the .jucer file to set correct module paths for CI
-        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        # Try setting path to JUCE root instead of modules subdirectory
+        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE"/>|g' AudioChain.jucer
         
         echo "=== After sed modifications ==="
-        grep "MODULEPATH" AudioChain.jucer
-        
-        echo "=== Verifying JUCE modules exist ==="
-        ls -la /usr/local/JUCE/modules/juce_core/ || echo "juce_core module not found"
-        ls -la /usr/local/JUCE/modules/juce_audio_basics/ || echo "juce_audio_basics module not found"
+        grep "MODULEPATH" AudioChain.jucer | head -12
     
     - name: Setup VST2 SDK (if available)
       run: |
@@ -89,7 +85,7 @@ jobs:
           cp -r /usr/local/JUCE ./JUCE_LOCAL
           
           # Update paths to use local installation
-          sed -i '' 's|/usr/local/JUCE/modules|./JUCE_LOCAL/modules|g' AudioChain.jucer
+          sed -i '' 's|/usr/local/JUCE|./JUCE_LOCAL|g' AudioChain.jucer
           
           echo "=== Updated to local paths ==="
           grep "MODULEPATH" AudioChain.jucer | head -12
