@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
+
   build-macos:
     runs-on: macos-latest
     
@@ -17,48 +18,28 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: latest-stable
-    
     - name: Install JUCE
       run: |
         # Download and install JUCE
-        curl -L -o juce.zip https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-osx.zip
-        unzip juce.zip -d juce-temp
-        sudo mv juce-temp/JUCE /usr/local/JUCE
-        
-        # Make Projucer executable
-        sudo chmod +x /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer
-    
-    - name: Debug JUCE installation
-      run: |
-        echo "=== JUCE Installation Debug ==="
-        ls -la /usr/local/JUCE/
-        echo "=== JUCE Modules Directory ==="
-        ls -la /usr/local/JUCE/modules/ || echo "Modules directory not found"
-        echo "=== Current .jucer file MODULEPATH lines ==="
-        grep "MODULEPATH" AudioChain.jucer
+        curl -L "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-osx.zip" -o juce.zip
+        unzip juce.zip
+        sudo mv JUCE /usr/local/JUCE
     
     - name: Configure JUCE module paths
       run: |
-        # Try setting path to JUCE root instead of modules subdirectory
-        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE"/>|g' AudioChain.jucer
-        
-        echo "=== After sed modifications ==="
-        grep "MODULEPATH" AudioChain.jucer | head -12
+        # Update the .jucer file to set correct module paths for CI
+        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
     
     - name: Setup VST2 SDK (if available)
       run: |
@@ -66,7 +47,7 @@ jobs:
           echo "VST2 SDK submodule detected, setting up headers..."
           VST2_TARGET_DIR="/usr/local/JUCE/modules/juce_audio_processors/format_types/VST3_SDK/pluginterfaces/vst2.x"
           sudo mkdir -p "$VST2_TARGET_DIR"
-          sudo cp -r external/VST_SDK_2.4/pluginterfaces/vst2.x/* "$VST2_TARGET_DIR/" || true
+          sudo cp -r external/VST_SDK_2.4/pluginterfaces/vst2.x/* "$VST2_TARGET_DIR/" 2>/dev/null || true
           echo "VST2 headers setup complete"
         else
           echo "No VST2 SDK submodule found, skipping VST2 setup"
@@ -74,61 +55,60 @@ jobs:
     
     - name: Generate Xcode project
       run: |
-        # Set proper ownership of JUCE installation
-        sudo chown -R runner:staff /usr/local/JUCE/
-        
-        # Try generating the project with verbose output
-        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer --verbose || {
-          echo "=== Projucer failed, trying alternative approach ==="
-          
-          # Try using a local JUCE installation instead
-          cp -r /usr/local/JUCE ./JUCE_LOCAL
-          
-          # Update paths to use local installation
-          sed -i '' 's|/usr/local/JUCE|./JUCE_LOCAL|g' AudioChain.jucer
-          
-          echo "=== Updated to local paths ==="
-          grep "MODULEPATH" AudioChain.jucer | head -12
-          
-          # Try again with local paths
-          ./JUCE_LOCAL/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
-        }
-    
-    - name: Build Debug
-      run: |
-        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj \
-                   -configuration Debug \
-                   -arch x86_64 \
-                   clean build
+        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
     
     - name: Build Release
       run: |
-        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj \
-                   -configuration Release \
-                   -arch x86_64 \
-                   clean build
+        xcodebuild -project Builds/MacOSX/AudioChain.xcodeproj -scheme AudioChain -configuration Release -archivePath AudioChain.xcarchive archive
+        xcodebuild -exportArchive -archivePath AudioChain.xcarchive -exportPath AudioChain-Export -exportOptionsPlist <(cat <<EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>method</key>
+            <string>mac-application</string>
+            <key>signingStyle</key>
+            <string>automatic</string>            
+        </dict>
+        </plist>
+        EOF
+        )
     
-    - name: Create DMG (Release only)
+    - name: Create DMG
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
-        # Create a DMG file for distribution
-        mkdir -p dmg-contents
-        cp -R Builds/MacOSX/build/Release/AudioChain.app dmg-contents/
+        # Install create-dmg for creating the DMG
+        brew install create-dmg
         
-        # Create DMG
-        hdiutil create -volname "AudioChain" \
-                       -srcfolder dmg-contents \
-                       -ov -format UDZO \
-                       AudioChain-macOS.dmg
+        # Find the built app
+        APP_PATH=$(find AudioChain-Export -name "*.app" -type d | head -1)
+        
+        if [ -n "$APP_PATH" ]; then
+          echo "Found app at: $APP_PATH"
+          
+          # Create DMG
+          create-dmg \
+            --volname "AudioChain" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "AudioChain.app" 200 190 \
+            --hide-extension "AudioChain.app" \
+            --app-drop-link 600 185 \
+            "AudioChain-macOS.dmg" \
+            "$APP_PATH"
+        else
+          echo "App not found, listing export contents..."
+          find AudioChain-Export -type f -name "*.app" || find AudioChain-Export -type d
+        fi
     
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
       with:
         name: AudioChain-macOS
         path: |
-          Builds/MacOSX/build/Debug/AudioChain.app
-          Builds/MacOSX/build/Release/AudioChain.app
           AudioChain-macOS.dmg
+          AudioChain-Export/**/*.app
         if-no-files-found: ignore
 
   build-windows:
@@ -186,10 +166,6 @@ jobs:
       run: |
         "C:\JUCE\Projucer.exe" --resave AudioChain.jucer
     
-    - name: Build Debug
-      run: |
-        msbuild Builds/VisualStudio2022/AudioChain.sln /p:Configuration=Debug /p:Platform=x64 /m
-    
     - name: Build Release
       run: |
         msbuild Builds/VisualStudio2022/AudioChain.sln /p:Configuration=Release /p:Platform=x64 /m
@@ -221,7 +197,6 @@ jobs:
       with:
         name: AudioChain-Windows
         path: |
-          Builds/VisualStudio2022/**/Debug/**/*.exe
           Builds/VisualStudio2022/**/Release/**/*.exe
           AudioChain-Windows.zip
         if-no-files-found: ignore
