@@ -121,33 +121,49 @@ jobs:
     - name: Download and setup ASIO SDK
       shell: powershell
       run: |
-        # Download ASIO SDK
         Write-Host "Downloading ASIO SDK..."
-        $asioUrl = "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip"
-        Invoke-WebRequest -Uri $asioUrl -OutFile "asio_sdk.zip" -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        $asioUrl = 'https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip'
+        $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
-        # Create external directory if it doesn't exist
-        if (-not (Test-Path "external")) {
-          New-Item -ItemType Directory -Force -Path "external"
+        try {
+          Invoke-WebRequest -Uri $asioUrl -OutFile 'asio_sdk.zip' -UserAgent $userAgent -ErrorAction Stop
+          Write-Host "✓ ASIO SDK downloaded successfully"
+        } catch {
+          Write-Host "❌ Failed to download ASIO SDK: $($_.Exception.Message)"
+          exit 1
         }
 
-        # Extract to external directory
+        if (-not (Test-Path 'external')) {
+          New-Item -ItemType Directory -Force -Path 'external'
+        }
+
         Write-Host "Extracting ASIO SDK..."
-        Expand-Archive -Path "asio_sdk.zip" -DestinationPath "external" -Force
+        try {
+          Expand-Archive -Path 'asio_sdk.zip' -DestinationPath 'external' -Force -ErrorAction Stop
+          Write-Host "✓ ASIO SDK extracted successfully"
+        } catch {
+          Write-Host "❌ Failed to extract ASIO SDK: $($_.Exception.Message)"
+          exit 1
+        }
 
-        # Verify extraction
-        if (Test-Path "external/asiosdk_2.3.3_2019-06-14") {
-          Write-Host "✓ ASIO SDK extracted successfully to external/asiosdk_2.3.3_2019-06-14"
-          Get-ChildItem "external/asiosdk_2.3.3_2019-06-14" | ForEach-Object { Write-Host "  $($_.Name)" }
+        $expectedPath = 'external/asiosdk_2.3.3_2019-06-14'
+        if (Test-Path $expectedPath) {
+          Write-Host "✓ ASIO SDK found at expected location: $expectedPath"
+          $itemCount = (Get-ChildItem $expectedPath).Count
+          Write-Host "Found $itemCount items in ASIO SDK directory"
         } else {
-          Write-Host "❌ ASIO SDK extraction failed"
+          Write-Host "❌ ASIO SDK not found at expected location"
           Write-Host "Available directories in external:"
-          Get-ChildItem "external" | ForEach-Object { Write-Host "  $($_.Name)" }
+          Get-ChildItem 'external' -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
 
-          # Try alternative extraction path
-          if (Test-Path "external/asiosdk") {
-            Write-Host "Found ASIO SDK in alternative location, renaming..."
-            Move-Item "external/asiosdk" "external/asiosdk_2.3.3_2019-06-14"
+          $asioDir = Get-ChildItem 'external' -Directory | Where-Object { $_.Name -like '*asio*' } | Select-Object -First 1
+          if ($asioDir) {
+            Write-Host "Found ASIO directory: $($asioDir.Name), renaming to expected name..."
+            Move-Item $asioDir.FullName $expectedPath
+            Write-Host "✓ Renamed to: $expectedPath"
+          } else {
+            Write-Host "❌ No ASIO directory found in extraction"
+            exit 1
           }
         }
 
