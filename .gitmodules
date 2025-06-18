@@ -1,0 +1,3 @@
+[submodule "external/VST_SDK_2.4"]
+	path = external/VST_SDK_2.4
+	url = https://github.com/R-Tur/VST_SDK_2.4.git

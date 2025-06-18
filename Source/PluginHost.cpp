@@ -25,13 +25,13 @@ PluginHost::PluginHost() {
     // Initialize format manager with supported formats
     formatManager.addFormat(new juce::VST3PluginFormat());
     
+    // Add VST2 support (requires VST2 SDK headers)
+#if JUCE_PLUGINHOST_VST
+    formatManager.addFormat(new juce::VSTPluginFormat());
+#endif
+    
 #if JUCE_MAC
     formatManager.addFormat(new juce::AudioUnitPluginFormat());
-#endif
-
-// Future plugin formats can be enabled when available
-#if JUCE_PLUGINHOST_VST && JUCE_PLUGINHOST_VST_LEGACY  
-    formatManager.addFormat(new juce::VSTPluginFormat());
 #endif
 
 // CLAP support (when available in JUCE)
