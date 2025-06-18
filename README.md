@@ -1,6 +1,6 @@
 # AudioChain - Cross-Platform Audio Processing with Multi-Format Plugin Chain
 
-[![Build AudioChain](https://github.com/YOUR_USERNAME/AudioChain/actions/workflows/build.yml/badge.svg)](https://github.com/YOUR_USERNAME/AudioChain/actions/workflows/build.yml)
+[![Build AudioChain](https://github.com/Earu/AudioChain/actions/workflows/build.yml/badge.svg)](https://github.com/Earu/AudioChain/actions/workflows/build.yml)
 
 AudioChain is a JUCE-based application that processes audio input through a customizable plugin chain supporting VST2, VST3, and Audio Unit formats. This enables real-time audio processing and effects for any audio source on your system, supporting both macOS and Windows platforms.
 
