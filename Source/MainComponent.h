@@ -4,7 +4,7 @@
 #include "AudioProcessor.h"
 #include "PluginChainComponent.h"
 #include "UserConfig.h"
-#include "VST3PluginHost.h"
+#include "PluginHost.h"
 #include <JuceHeader.h>
 
 //==============================================================================
@@ -232,7 +232,7 @@ class MainComponent : public juce::Component, public juce::Timer, public juce::A
     std::unique_ptr<AudioProcessor> audioProcessor;
 
     // VST3 Plugin Host
-    std::unique_ptr<VST3PluginHost> pluginHost;
+    std::unique_ptr<PluginHost> pluginHost;
 
     // User Configuration
     std::unique_ptr<UserConfig> userConfig;

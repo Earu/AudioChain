@@ -5,16 +5,16 @@
 
 //==============================================================================
 /**
-    VST3 Plugin Host class that manages a chain of VST3 plugins.
+    Multi-format Plugin Host class that manages a chain of audio plugins.
 
     This class handles:
-    - Loading and unloading VST3 plugins
+    - Loading and unloading plugins (VST2, VST3, AU, CLAP)
     - Managing the plugin chain order
     - Processing audio through the plugin chain
     - Plugin parameter management
     - Plugin state saving/loading
 */
-class VST3PluginHost {
+class PluginHost {
   public:
     //==============================================================================
     struct PluginInfo {
@@ -39,8 +39,8 @@ class VST3PluginHost {
     };
 
     //==============================================================================
-    VST3PluginHost();
-    ~VST3PluginHost();
+    PluginHost();
+    ~PluginHost();
 
     // Audio processing
     void prepareToPlay(int samplesPerBlock, double sampleRate);
@@ -64,12 +64,10 @@ class VST3PluginHost {
     const juce::AudioProcessor *getPlugin(int index) const;
     PluginInfo getPluginInfo(int index) const;
 
-    // Plugin scanning
-    void scanForPlugins();
-    void scanForPlugins(const juce::StringArray &searchPaths);
-    void scanForPluginsAsync();
-    void scanForPluginsSync();  // Force synchronous scan
-    void refreshPluginCache();
+    // Plugin scanning - consolidated interface
+    void scanForPlugins(bool useCache = true);                        // Main scanning function
+    void scanForPlugins(const juce::StringArray &searchPaths);        // Scan specific paths
+    void refreshPluginCache();                                        // Force refresh
     bool isPluginCacheValid() const { return pluginCacheValid; }
     bool isScanning() const { return isCurrentlyScanning; }
     const juce::Array<PluginInfo> &getAvailablePlugins() const { return availablePlugins; }
@@ -103,6 +101,13 @@ class VST3PluginHost {
     };
 
     //==============================================================================
+    struct PluginFormatInfo {
+        juce::String formatName;
+        juce::StringArray fileExtensions;
+        juce::StringArray directoryExtensions;
+    };
+
+    //==============================================================================
     juce::OwnedArray<PluginInstance> pluginChain;
     juce::Array<PluginInfo> availablePlugins;
 
@@ -123,12 +128,11 @@ class VST3PluginHost {
     // Plugin cache and scanning state
     bool pluginCacheValid = false;
     bool isCurrentlyScanning = false;
-    std::unique_ptr<juce::Thread> scanningThread;
 
-    // Main thread scanning (timer-based)
-    std::unique_ptr<juce::Timer> scanningTimer;
+    // Scanning state
     juce::Array<juce::File> filesToScan;
     int currentScanIndex = 0;
+    std::unique_ptr<juce::Timer> scanningTimer;
 
     // Helper methods
     PluginInfo createPluginInfo(const juce::PluginDescription &description);
@@ -142,22 +146,22 @@ class VST3PluginHost {
     juce::String analyzeWindowsPEArchitecture(const juce::File &pluginFile) const;
     juce::String analyzeMacBinaryArchitecture(const juce::File &binaryFile) const;
 
-    // Plugin scanning (internal)
-    void performPluginScan();
+    // Consolidated plugin scanning
     void scanPluginsInPaths(const juce::StringArray &searchPaths, juce::Array<PluginInfo> &pluginList);
-    void processVST3File(const juce::File &vstFile, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList);
-    void processVST3Bundle(const juce::File &vstBundle, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList);
-
-    // Plugin scanning
-    void addPluginToList(const juce::PluginDescription &description);
-
-    // Timer-based scanning (main thread)
-    void startMainThreadScan();
+    void startPluginScan();
     void scanNextPlugin();
 
+    // Format-specific processing
+    void processPluginFile(const juce::File &pluginFile, juce::AudioPluginFormat *format, juce::Array<PluginInfo> &pluginList);
+    void processPluginBundle(const juce::File &bundleFile, juce::AudioPluginFormat *format, juce::Array<PluginInfo> &pluginList);
+    juce::Array<PluginFormatInfo> getSupportedFormats() const;
+    juce::AudioPluginFormat* getFormatForFile(const juce::File &pluginFile) const;
+
+    // Helper for adding plugins
+    void addPluginToList(const juce::PluginDescription &description);
+
     // Forward declarations
-    class PluginScanningThread;
     class PluginScanningTimer;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VST3PluginHost)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginHost)
 };

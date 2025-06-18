@@ -1,7 +1,7 @@
 #pragma once
 
 #include "UserConfig.h"
-#include "VST3PluginHost.h"
+#include "PluginHost.h"
 #include <JuceHeader.h>
 
 //==============================================================================
@@ -18,7 +18,7 @@
 */
 class PluginChainComponent : public juce::Component, public juce::DragAndDropContainer, public juce::Timer {
   public:
-    explicit PluginChainComponent(VST3PluginHost &pluginHost);
+    explicit PluginChainComponent(PluginHost &pluginHost);
     ~PluginChainComponent() override;
 
     // Component overrides
@@ -32,7 +32,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
     //==============================================================================
     class PluginSlot : public juce::Component, public juce::Button::Listener, public juce::DragAndDropTarget {
       public:
-        PluginSlot(int index, VST3PluginHost &host, PluginChainComponent &parent);
+        PluginSlot(int index, PluginHost &host, PluginChainComponent &parent);
         ~PluginSlot() override;
 
         void paint(juce::Graphics &g) override;
@@ -51,7 +51,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         void itemDragExit(const SourceDetails &dragSourceDetails) override;
         void itemDropped(const SourceDetails &dragSourceDetails) override;
 
-        void setPluginInfo(const VST3PluginHost::PluginInfo &info);
+        void setPluginInfo(const PluginHost::PluginInfo &info);
         void clearPlugin();
         void updateBypassState();
 
@@ -60,10 +60,10 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
 
       private:
         int slotIndex;
-        VST3PluginHost &pluginHost;
+        PluginHost &pluginHost;
         PluginChainComponent &parentComponent;
 
-        VST3PluginHost::PluginInfo pluginInfo;
+        PluginHost::PluginInfo pluginInfo;
 
         // UI Elements
         juce::Label nameLabel;
@@ -99,7 +99,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
     //==============================================================================
     class PluginBrowser : public juce::Component, public juce::ListBoxModel, public juce::Button::Listener {
       public:
-        explicit PluginBrowser(VST3PluginHost &host);
+        explicit PluginBrowser(PluginHost &host);
         ~PluginBrowser() override;
 
         void paint(juce::Graphics &g) override;
@@ -119,7 +119,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         void onScanComplete();
 
       private:
-        VST3PluginHost &pluginHost;
+        PluginHost &pluginHost;
         UserConfig *userConfig = nullptr;
         bool isLoadingPlugins = false;
 
@@ -190,7 +190,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
     };
 
     //==============================================================================
-    VST3PluginHost &pluginHost;
+    PluginHost &pluginHost;
 
     // Scrollable plugin chain container
     class PluginChainContainer : public juce::Component {

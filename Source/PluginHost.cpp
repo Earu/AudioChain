@@ -1,15 +1,42 @@
-#include "VST3PluginHost.h"
+#include "PluginHost.h"
 #include "UserConfig.h"
 #include <vector>
 #include <cmath>
 #include <memory>
 
 //==============================================================================
-VST3PluginHost::VST3PluginHost() {
-    // Initialize format manager with specific formats (avoid VST2)
+// Main Thread Scanning Timer
+class PluginHost::PluginScanningTimer : public juce::Timer
+{
+public:
+    PluginScanningTimer(PluginHost& host) : pluginHost(host) {}
+
+    void timerCallback() override
+    {
+        pluginHost.scanNextPlugin();
+    }
+
+private:
+    PluginHost& pluginHost;
+};
+
+//==============================================================================
+PluginHost::PluginHost() {
+    // Initialize format manager with supported formats
     formatManager.addFormat(new juce::VST3PluginFormat());
+    
 #if JUCE_MAC
     formatManager.addFormat(new juce::AudioUnitPluginFormat());
+#endif
+
+// Future plugin formats can be enabled when available
+#if JUCE_PLUGINHOST_VST && JUCE_PLUGINHOST_VST_LEGACY  
+    formatManager.addFormat(new juce::VSTPluginFormat());
+#endif
+
+// CLAP support (when available in JUCE)
+#if 0  // Enable when CLAP support is added to JUCE
+    formatManager.addFormat(new juce::CLAPPluginFormat());
 #endif
 
     // Debug: Check what formats are available
@@ -25,10 +52,12 @@ VST3PluginHost::VST3PluginHost() {
     // Use scanForPlugins() or scanForPluginsAsync() when needed
 }
 
-VST3PluginHost::~VST3PluginHost() { clearAllPlugins(); }
+PluginHost::~PluginHost() { 
+    clearAllPlugins(); 
+}
 
 //==============================================================================
-void VST3PluginHost::prepareToPlay(int samplesPerBlock, double sampleRate) {
+void PluginHost::prepareToPlay(int samplesPerBlock, double sampleRate) {
     juce::ScopedLock lock(pluginLock);
 
     currentBlockSize = samplesPerBlock;
@@ -44,7 +73,7 @@ void VST3PluginHost::prepareToPlay(int samplesPerBlock, double sampleRate) {
     isPrepared = true;
 }
 
-void VST3PluginHost::processAudio(juce::AudioBuffer<float> &buffer) {
+void PluginHost::processAudio(juce::AudioBuffer<float> &buffer) {
     juce::ScopedLock lock(pluginLock);
 
     if (!isPrepared)
@@ -72,7 +101,7 @@ void VST3PluginHost::processAudio(juce::AudioBuffer<float> &buffer) {
     }
 }
 
-void VST3PluginHost::releaseResources() {
+void PluginHost::releaseResources() {
     juce::ScopedLock lock(pluginLock);
 
     for (auto *plugin : pluginChain) {
@@ -85,7 +114,7 @@ void VST3PluginHost::releaseResources() {
 }
 
 //==============================================================================
-bool VST3PluginHost::loadPlugin(const juce::String &pluginPath) {
+bool PluginHost::loadPlugin(const juce::String &pluginPath) {
     // Find plugin info by path
     for (const auto &pluginInfo : availablePlugins) {
         if (pluginInfo.fileOrIdentifier == pluginPath) {
@@ -95,10 +124,10 @@ bool VST3PluginHost::loadPlugin(const juce::String &pluginPath) {
     return false;
 }
 
-bool VST3PluginHost::loadPlugin(const PluginInfo &pluginInfo) {
+bool PluginHost::loadPlugin(const PluginInfo &pluginInfo) {
     juce::ScopedLock lock(pluginLock);
 
-        // Check architecture compatibility before attempting to load
+    // Check architecture compatibility before attempting to load
     if (!pluginInfo.isCompatible) {
         DBG("Attempting to load incompatible plugin: " + pluginInfo.name + " (" + pluginInfo.architectureString + ")");
 
@@ -188,7 +217,7 @@ bool VST3PluginHost::loadPlugin(const PluginInfo &pluginInfo) {
     return true;
 }
 
-void VST3PluginHost::unloadPlugin(int index) {
+void PluginHost::unloadPlugin(int index) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -205,7 +234,7 @@ void VST3PluginHost::unloadPlugin(int index) {
     }
 }
 
-void VST3PluginHost::clearAllPlugins() {
+void PluginHost::clearAllPlugins() {
     juce::ScopedLock lock(pluginLock);
 
     // Close all editors
@@ -223,7 +252,7 @@ void VST3PluginHost::clearAllPlugins() {
 }
 
 //==============================================================================
-void VST3PluginHost::movePlugin(int fromIndex, int toIndex) {
+void PluginHost::movePlugin(int fromIndex, int toIndex) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(fromIndex, pluginChain.size()) &&
@@ -236,7 +265,7 @@ void VST3PluginHost::movePlugin(int fromIndex, int toIndex) {
     }
 }
 
-void VST3PluginHost::bypassPlugin(int index, bool shouldBypass) {
+void PluginHost::bypassPlugin(int index, bool shouldBypass) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -244,7 +273,7 @@ void VST3PluginHost::bypassPlugin(int index, bool shouldBypass) {
     }
 }
 
-bool VST3PluginHost::isPluginBypassed(int index) const {
+bool PluginHost::isPluginBypassed(int index) const {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -254,7 +283,7 @@ bool VST3PluginHost::isPluginBypassed(int index) const {
 }
 
 //==============================================================================
-juce::AudioProcessor *VST3PluginHost::getPlugin(int index) {
+juce::AudioProcessor *PluginHost::getPlugin(int index) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -263,7 +292,7 @@ juce::AudioProcessor *VST3PluginHost::getPlugin(int index) {
     return nullptr;
 }
 
-const juce::AudioProcessor *VST3PluginHost::getPlugin(int index) const {
+const juce::AudioProcessor *PluginHost::getPlugin(int index) const {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -272,7 +301,7 @@ const juce::AudioProcessor *VST3PluginHost::getPlugin(int index) const {
     return nullptr;
 }
 
-VST3PluginHost::PluginInfo VST3PluginHost::getPluginInfo(int index) const {
+PluginHost::PluginInfo PluginHost::getPluginInfo(int index) const {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -282,18 +311,23 @@ VST3PluginHost::PluginInfo VST3PluginHost::getPluginInfo(int index) const {
 }
 
 //==============================================================================
-void VST3PluginHost::scanForPlugins() {
-    // Check if we already have cached plugins
-    if (pluginCacheValid && !availablePlugins.isEmpty()) {
+void PluginHost::scanForPlugins(bool useCache) {
+    // Check if we should use cache and have valid cached plugins
+    if (useCache && pluginCacheValid && !availablePlugins.isEmpty()) {
         DBG("Using cached plugin list (" + juce::String(availablePlugins.size()) + " plugins)");
         return;
     }
 
-    // Cache is invalid or empty, perform async scan
-    scanForPluginsAsync();
+    // Start scanning
+    if (isCurrentlyScanning) {
+        DBG("Already scanning plugins, ignoring request");
+        return;
+    }
+
+    refreshPluginCache();
 }
 
-juce::AudioProcessorEditor *VST3PluginHost::createEditorForPlugin(int index) {
+juce::AudioProcessorEditor *PluginHost::createEditorForPlugin(int index) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -306,7 +340,7 @@ juce::AudioProcessorEditor *VST3PluginHost::createEditorForPlugin(int index) {
     return nullptr;
 }
 
-void VST3PluginHost::closeEditorForPlugin(int index) {
+void PluginHost::closeEditorForPlugin(int index) {
     juce::ScopedLock lock(pluginLock);
 
     if (juce::isPositiveAndBelow(index, pluginChain.size())) {
@@ -315,7 +349,7 @@ void VST3PluginHost::closeEditorForPlugin(int index) {
 }
 
 //==============================================================================
-juce::ValueTree VST3PluginHost::getState() const {
+juce::ValueTree PluginHost::getState() const {
     juce::ScopedLock lock(pluginLock);
 
     juce::ValueTree state("PluginChain");
@@ -342,7 +376,7 @@ juce::ValueTree VST3PluginHost::getState() const {
     return state;
 }
 
-void VST3PluginHost::setState(const juce::ValueTree &state) {
+void PluginHost::setState(const juce::ValueTree &state) {
     if (!state.hasType("PluginChain"))
         return;
 
@@ -379,25 +413,25 @@ void VST3PluginHost::setState(const juce::ValueTree &state) {
     }
 }
 
-void VST3PluginHost::processVST3File(const juce::File &vstFile, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList) {
-    DBG("  Found VST3 file: " + vstFile.getFullPathName());
+void PluginHost::processPluginFile(const juce::File &pluginFile, juce::AudioPluginFormat *format, juce::Array<PluginInfo> &pluginList) {
+    DBG("  Found plugin file: " + pluginFile.getFullPathName() + " (Format: " + format->getName() + ")");
 
     // Check architecture compatibility FIRST, before JUCE tries to load it
-    juce::String architecture = getPluginArchitecture(vstFile);
-    bool isCompatible = isPluginArchitectureCompatible(vstFile);
+    juce::String architecture = getPluginArchitecture(pluginFile);
+    bool isCompatible = isPluginArchitectureCompatible(pluginFile);
 
     DBG("    Plugin architecture: " + architecture + ", Compatible: " + (isCompatible ? "Yes" : "No"));
 
     // Skip incompatible plugins entirely
     if (!isCompatible) {
-        DBG("    Skipped incompatible plugin: " + vstFile.getFileNameWithoutExtension() +
+        DBG("    Skipped incompatible plugin: " + pluginFile.getFileNameWithoutExtension() +
             " (" + architecture + " vs host " + (isHostArchitecture64Bit() ? "x64" : "x86") + ")");
         return;
     }
 
     // Try to get proper plugin description using JUCE (only for compatible plugins)
     juce::OwnedArray<juce::PluginDescription> descriptions;
-    vst3Format->findAllTypesForFile(descriptions, vstFile.getFullPathName());
+    format->findAllTypesForFile(descriptions, pluginFile.getFullPathName());
 
     bool foundDescription = descriptions.size() > 0 && descriptions[0] != nullptr;
     if (foundDescription) {
@@ -411,7 +445,7 @@ void VST3PluginHost::processVST3File(const juce::File &vstFile, juce::AudioPlugi
     if (foundDescription) {
         auto *description = descriptions[0]; // Use first description
         info.name = description->name.isNotEmpty() ? description->name
-                                                   : vstFile.getFileNameWithoutExtension();
+                                                   : pluginFile.getFileNameWithoutExtension();
         info.manufacturer =
             description->manufacturerName.isNotEmpty() ? description->manufacturerName : "Unknown";
         info.version = description->version.isNotEmpty() ? description->version : "1.0";
@@ -427,11 +461,11 @@ void VST3PluginHost::processVST3File(const juce::File &vstFile, juce::AudioPlugi
         info.hasJuceDescription = true;
     } else {
         // Fallback to basic info - assume it's an effect if we can't determine
-        info.name = vstFile.getFileNameWithoutExtension();
+        info.name = pluginFile.getFileNameWithoutExtension();
         info.manufacturer = "Unknown";
         info.version = "1.0";
-        info.pluginFormatName = "VST3";
-        info.fileOrIdentifier = vstFile.getFullPathName();
+        info.pluginFormatName = format->getName();
+        info.fileOrIdentifier = pluginFile.getFullPathName();
         info.numInputChannels = 2;
         info.numOutputChannels = 2;
         info.isInstrument = false; // Assume effect when unknown
@@ -455,44 +489,51 @@ void VST3PluginHost::processVST3File(const juce::File &vstFile, juce::AudioPlugi
     DBG("    Added effect: " + info.name + " by " + info.manufacturer);
 }
 
-void VST3PluginHost::processVST3Bundle(const juce::File &vstBundle, juce::AudioPluginFormat *vst3Format, juce::Array<PluginInfo> &pluginList) {
-    DBG("  Found VST3 bundle: " + vstBundle.getFullPathName());
+void PluginHost::processPluginBundle(const juce::File &bundleFile, juce::AudioPluginFormat *format, juce::Array<PluginInfo> &pluginList) {
+    DBG("  Found plugin bundle: " + bundleFile.getFullPathName() + " (Format: " + format->getName() + ")");
 
-    // Check if it's a valid VST3 bundle by looking for platform-specific structure
-    auto contentsDir = vstBundle.getChildFile("Contents");
+    // Validate bundle structure based on format
     bool validBundle = false;
-
+    if (format->getName().containsIgnoreCase("VST3")) {
+        auto contentsDir = bundleFile.getChildFile("Contents");
 #if JUCE_MAC
-    auto macOSDir = contentsDir.getChildFile("MacOS");
-    validBundle = contentsDir.exists() && macOSDir.exists();
+        auto macOSDir = contentsDir.getChildFile("MacOS");
+        validBundle = contentsDir.exists() && macOSDir.exists();
 #elif JUCE_WINDOWS
-    auto x64Dir = contentsDir.getChildFile("x86_64-win");
-    validBundle = contentsDir.exists() && x64Dir.exists();
+        auto x64Dir = contentsDir.getChildFile("x86_64-win");
+        validBundle = contentsDir.exists() && x64Dir.exists();
 #endif
+    } else if (format->getName().containsIgnoreCase("AudioUnit")) {
+        // AU bundles have different structure - assume valid if it's a directory
+        validBundle = bundleFile.isDirectory();
+    } else {
+        // For other formats, assume valid if it's a directory
+        validBundle = bundleFile.isDirectory();
+    }
 
     if (!validBundle) {
-        DBG("    Invalid VST3 bundle structure for platform");
+        DBG("    Invalid bundle structure for format " + format->getName());
         return;
     }
 
-    DBG("    Valid VST3 bundle structure");
+    DBG("    Valid bundle structure");
 
     // Check architecture compatibility FIRST, before JUCE tries to load it
-    juce::String architecture = getPluginArchitecture(vstBundle);
-    bool isCompatible = isPluginArchitectureCompatible(vstBundle);
+    juce::String architecture = getPluginArchitecture(bundleFile);
+    bool isCompatible = isPluginArchitectureCompatible(bundleFile);
 
     DBG("    Plugin architecture: " + architecture + ", Compatible: " + (isCompatible ? "Yes" : "No"));
 
     // Skip incompatible plugins entirely
     if (!isCompatible) {
-        DBG("    Skipped incompatible plugin: " + vstBundle.getFileNameWithoutExtension() +
+        DBG("    Skipped incompatible plugin: " + bundleFile.getFileNameWithoutExtension() +
             " (" + architecture + " vs host " + (isHostArchitecture64Bit() ? "x64" : "x86") + ")");
         return;
     }
 
     // Try to get proper plugin description using JUCE (only for compatible plugins)
     juce::OwnedArray<juce::PluginDescription> descriptions;
-    vst3Format->findAllTypesForFile(descriptions, vstBundle.getFullPathName());
+    format->findAllTypesForFile(descriptions, bundleFile.getFullPathName());
 
     bool foundDescription = descriptions.size() > 0 && descriptions[0] != nullptr;
     if (foundDescription) {
@@ -506,7 +547,7 @@ void VST3PluginHost::processVST3Bundle(const juce::File &vstBundle, juce::AudioP
     if (foundDescription) {
         auto *description = descriptions[0]; // Use first description
         info.name = description->name.isNotEmpty() ? description->name
-                                                   : vstBundle.getFileNameWithoutExtension();
+                                                   : bundleFile.getFileNameWithoutExtension();
         info.manufacturer =
             description->manufacturerName.isNotEmpty() ? description->manufacturerName : "Unknown";
         info.version = description->version.isNotEmpty() ? description->version : "1.0";
@@ -522,11 +563,11 @@ void VST3PluginHost::processVST3Bundle(const juce::File &vstBundle, juce::AudioP
         info.hasJuceDescription = true;
     } else {
         // Fallback to basic info - assume it's an effect if we can't determine
-        info.name = vstBundle.getFileNameWithoutExtension();
+        info.name = bundleFile.getFileNameWithoutExtension();
         info.manufacturer = "Unknown";
         info.version = "1.0";
-        info.pluginFormatName = "VST3";
-        info.fileOrIdentifier = vstBundle.getFullPathName();
+        info.pluginFormatName = format->getName();
+        info.fileOrIdentifier = bundleFile.getFullPathName();
         info.numInputChannels = 2;
         info.numOutputChannels = 2;
         info.isInstrument = false; // Assume effect when unknown
@@ -551,7 +592,7 @@ void VST3PluginHost::processVST3Bundle(const juce::File &vstBundle, juce::AudioP
 }
 
 //==============================================================================
-VST3PluginHost::PluginInfo VST3PluginHost::createPluginInfo(const juce::PluginDescription &description) {
+PluginHost::PluginInfo PluginHost::createPluginInfo(const juce::PluginDescription &description) {
     PluginInfo info;
     info.name = description.name;
     info.manufacturer = description.manufacturerName;
@@ -576,7 +617,7 @@ VST3PluginHost::PluginInfo VST3PluginHost::createPluginInfo(const juce::PluginDe
     return info;
 }
 
-bool VST3PluginHost::validatePlugin(juce::AudioProcessor *processor) {
+bool PluginHost::validatePlugin(juce::AudioProcessor *processor) {
     if (!processor)
         return false;
 
@@ -593,7 +634,7 @@ bool VST3PluginHost::validatePlugin(juce::AudioProcessor *processor) {
     return true;
 }
 
-void VST3PluginHost::initializePlugin(PluginInstance *instance) {
+void PluginHost::initializePlugin(PluginInstance *instance) {
     if (!instance || !instance->isValid())
         return;
 
@@ -611,7 +652,7 @@ void VST3PluginHost::initializePlugin(PluginInstance *instance) {
     }
 }
 
-void VST3PluginHost::scanForPlugins(const juce::StringArray &searchPaths) {
+void PluginHost::scanForPlugins(const juce::StringArray &searchPaths) {
     // For specific search paths, always scan (don't use cache)
     juce::ScopedLock lock(pluginLock);
     availablePlugins.clear();
@@ -619,92 +660,68 @@ void VST3PluginHost::scanForPlugins(const juce::StringArray &searchPaths) {
     pluginCacheValid = true;
 }
 
-void VST3PluginHost::scanForPluginsSync() {
-    // Force synchronous scan, bypassing cache
-    juce::ScopedLock lock(pluginLock);
-
-    // Use configured search paths if available, otherwise use defaults
-    juce::StringArray searchPaths;
-    if (userConfig != nullptr) {
-        searchPaths = userConfig->getVSTSearchPaths();
-    } else {
-        searchPaths = UserConfig::getDefaultVSTSearchPaths();
-    }
-
-    availablePlugins.clear();
-    scanPluginsInPaths(searchPaths, availablePlugins);
-    pluginCacheValid = true;
-    isCurrentlyScanning = false;
-}
-
-void VST3PluginHost::scanPluginsInPaths(const juce::StringArray &searchPaths, juce::Array<PluginInfo> &pluginList) {
+void PluginHost::scanPluginsInPaths(const juce::StringArray &searchPaths, juce::Array<PluginInfo> &pluginList) {
     // Clear the provided list
     pluginList.clear();
 
-    DBG("=== Starting VST3 Plugin Scan ===");
+    DBG("=== Starting Plugin Scan ===");
     DBG("Search paths: " + searchPaths.joinIntoString(", "));
 
-    // Check if we have VST3 format available
-    juce::AudioPluginFormat *vst3Format = nullptr;
-    for (int i = 0; i < formatManager.getNumFormats(); ++i) {
-        auto *format = formatManager.getFormat(i);
-        if (format != nullptr && format->getName().containsIgnoreCase("VST3")) {
-            vst3Format = format;
-            DBG("Found VST3 format: " + format->getName());
-            break;
+    auto supportedFormats = getSupportedFormats();
+    
+    // Convert search paths to File objects
+    juce::Array<juce::File> searchDirectories;
+    for (const auto &path : searchPaths) {
+        juce::File dir(path);
+        if (dir.exists() && dir.isDirectory()) {
+            searchDirectories.add(dir);
+            DBG("Added search path: " + dir.getFullPathName());
+        } else {
+            DBG("Invalid search path: " + path);
         }
     }
 
-    if (vst3Format != nullptr) {
-        // Convert search paths to File objects
-        juce::Array<juce::File> vstDirectories;
-        for (const auto &path : searchPaths) {
-            juce::File dir(path);
-            if (dir.exists() && dir.isDirectory()) {
-                vstDirectories.add(dir);
-                DBG("Added search path: " + dir.getFullPathName());
-            } else {
-                DBG("Invalid search path: " + path);
-            }
+    // Scan each directory for all supported plugin formats
+    for (const auto &searchDir : searchDirectories) {
+        if (!searchDir.exists() || !searchDir.isDirectory()) {
+            continue;
         }
 
-        for (const auto &vstDir : vstDirectories) {
-            if (vstDir.exists() && vstDir.isDirectory()) {
-                // Scan for both VST3 files and bundles
-                juce::Array<juce::File> vstFiles;
-                juce::Array<juce::File> vstBundles;
+        DBG("Scanning directory recursively: " + searchDir.getFullPathName());
 
-                // Find VST3 files (single files, common on Windows)
-                vstDir.findChildFiles(vstFiles, juce::File::findFiles, false, "*.vst3");
-                // Find VST3 bundles (directories, common on macOS)
-                vstDir.findChildFiles(vstBundles, juce::File::findDirectories, false, "*.vst3");
-
-                DBG("Directory: " + vstDir.getFullPathName() + " contains " +
-                    juce::String(vstFiles.size()) + " .vst3 files and " +
-                    juce::String(vstBundles.size()) + " .vst3 bundles");
-
-                // Process single VST3 files first
-                for (const auto &vstFile : vstFiles) {
-                    processVST3File(vstFile, vst3Format, pluginList);
+        // Scan for each supported format (recursive search)
+        for (const auto &formatInfo : supportedFormats) {
+            // Find files with the format's extensions (recursive)
+            for (const auto &extension : formatInfo.fileExtensions) {
+                juce::Array<juce::File> pluginFiles;
+                searchDir.findChildFiles(pluginFiles, juce::File::findFiles, true, "*." + extension);
+                
+                for (const auto &pluginFile : pluginFiles) {
+                    if (auto *format = getFormatForFile(pluginFile)) {
+                        processPluginFile(pluginFile, format, pluginList);
+                    }
                 }
+            }
 
-                // Process VST3 bundles (mainly for macOS)
-                for (const auto &vstBundle : vstBundles) {
-                    processVST3Bundle(vstBundle, vst3Format, pluginList);
+            // Find directories with the format's extensions (bundles, recursive)
+            for (const auto &extension : formatInfo.directoryExtensions) {
+                juce::Array<juce::File> pluginBundles;
+                searchDir.findChildFiles(pluginBundles, juce::File::findDirectories, true, "*." + extension);
+                
+                for (const auto &bundleFile : pluginBundles) {
+                    if (auto *format = getFormatForFile(bundleFile)) {
+                        processPluginBundle(bundleFile, format, pluginList);
+                    }
                 }
-            } else {
-                DBG("VST3 directory doesn't exist: " + vstDir.getFullPathName());
             }
         }
-    } else {
-        DBG("ERROR: VST3 format not found in format manager!");
     }
 
     DBG("Final available plugins count: " + juce::String(pluginList.size()));
-    DBG("=== VST3 Plugin Scan Complete ===");
+    DBG("=== Plugin Scan Complete ===");
 }
 
-void VST3PluginHost::addPluginToList(const juce::PluginDescription &description) {
+void PluginHost::addPluginToList(const juce::PluginDescription &description) {
     // Check if plugin is already in the list
     for (const auto &existing : availablePlugins) {
         if (existing.fileOrIdentifier == description.fileOrIdentifier && existing.name == description.name) {
@@ -718,7 +735,7 @@ void VST3PluginHost::addPluginToList(const juce::PluginDescription &description)
 
 //==============================================================================
 // Architecture Detection Methods
-bool VST3PluginHost::isHostArchitecture64Bit() const {
+bool PluginHost::isHostArchitecture64Bit() const {
 #if JUCE_64BIT
     return true;
 #else
@@ -726,7 +743,7 @@ bool VST3PluginHost::isHostArchitecture64Bit() const {
 #endif
 }
 
-bool VST3PluginHost::isPluginArchitectureCompatible(const juce::File &pluginFile) const {
+bool PluginHost::isPluginArchitectureCompatible(const juce::File &pluginFile) const {
     bool hostIs64Bit = isHostArchitecture64Bit();
     juce::String pluginArch = getPluginArchitecture(pluginFile);
 
@@ -741,7 +758,7 @@ bool VST3PluginHost::isPluginArchitectureCompatible(const juce::File &pluginFile
     return hostIs64Bit == pluginIs64Bit;
 }
 
-juce::String VST3PluginHost::getPluginArchitecture(const juce::File &pluginFile) const {
+juce::String PluginHost::getPluginArchitecture(const juce::File &pluginFile) const {
     if (!pluginFile.exists()) {
         return "Unknown";
     }
@@ -782,7 +799,7 @@ juce::String VST3PluginHost::getPluginArchitecture(const juce::File &pluginFile)
     return "Unknown";
 }
 
-juce::String VST3PluginHost::analyzeWindowsPEArchitecture(const juce::File &pluginFile) const {
+juce::String PluginHost::analyzeWindowsPEArchitecture(const juce::File &pluginFile) const {
 #if JUCE_WINDOWS
     // Read PE header to determine architecture
     juce::FileInputStream stream(pluginFile);
@@ -837,7 +854,7 @@ juce::String VST3PluginHost::analyzeWindowsPEArchitecture(const juce::File &plug
 #endif
 }
 
-juce::String VST3PluginHost::analyzeMacBinaryArchitecture(const juce::File &binaryFile) const {
+juce::String PluginHost::analyzeMacBinaryArchitecture(const juce::File &binaryFile) const {
 #if JUCE_MAC
     // For macOS, we can use the `file` command or read Mach-O headers
     // For simplicity, assume 64-bit on modern macOS
@@ -850,126 +867,87 @@ juce::String VST3PluginHost::analyzeMacBinaryArchitecture(const juce::File &bina
 }
 
 //==============================================================================
-// Plugin Scanning Thread
-class VST3PluginHost::PluginScanningThread : public juce::Thread
-{
-public:
-    PluginScanningThread(VST3PluginHost& host)
-        : juce::Thread("VST3PluginScanning"), pluginHost(host) {}
-
-    void run() override
-    {
-        pluginHost.performPluginScan();
-    }
-
-private:
-    VST3PluginHost& pluginHost;
-};
-
-//==============================================================================
-// Async Scanning Methods
-void VST3PluginHost::scanForPluginsAsync()
-{
+// Consolidated Plugin Scanning
+void PluginHost::startPluginScan() {
     if (isCurrentlyScanning) {
         DBG("Already scanning plugins, ignoring request");
-        return; // Already scanning
-    }
-
-    DBG("Starting async plugin scan...");
-    isCurrentlyScanning = true;
-
-    // Create and start scanning thread
-    scanningThread = std::make_unique<PluginScanningThread>(*this);
-    scanningThread->startThread();
-}
-
-void VST3PluginHost::refreshPluginCache()
-{
-    pluginCacheValid = false;
-    scanForPluginsAsync();
-}
-
-void VST3PluginHost::performPluginScan()
-{
-    // JUCE plugin formats must be used on the main thread only!
-    // So we'll use a timer to do non-blocking scanning on the main thread
-    juce::MessageManager::callAsync([this]() {
-        startMainThreadScan();
-    });
-}
-
-//==============================================================================
-// Main Thread Scanning Timer
-class VST3PluginHost::PluginScanningTimer : public juce::Timer
-{
-public:
-    PluginScanningTimer(VST3PluginHost& host) : pluginHost(host) {}
-
-    void timerCallback() override
-    {
-        pluginHost.scanNextPlugin();
-    }
-
-private:
-    VST3PluginHost& pluginHost;
-};
-
-void VST3PluginHost::startMainThreadScan()
-{
-    // Prepare the scan
-    filesToScan.clear();
-    currentScanIndex = 0;
-
-    juce::ScopedLock lock(pluginLock);
-    availablePlugins.clear();
-
-    // Get search paths
-    juce::StringArray searchPaths;
-    if (userConfig != nullptr) {
-        searchPaths = userConfig->getVSTSearchPaths();
-    } else {
-        searchPaths = UserConfig::getDefaultVSTSearchPaths();
-    }
-
-    DBG("=== Starting Non-Blocking VST3 Plugin Scan ===");
-    DBG("Search paths: " + searchPaths.joinIntoString(", "));
-
-    // Collect all files to scan
-    for (const auto &path : searchPaths) {
-        juce::File dir(path);
-        if (dir.exists() && dir.isDirectory()) {
-            DBG("Scanning directory: " + dir.getFullPathName());
-
-            // Find VST3 files and bundles
-            juce::Array<juce::File> vstFiles;
-            juce::Array<juce::File> vstBundles;
-            dir.findChildFiles(vstFiles, juce::File::findFiles, false, "*.vst3");
-            dir.findChildFiles(vstBundles, juce::File::findDirectories, false, "*.vst3");
-
-            filesToScan.addArray(vstFiles);
-            filesToScan.addArray(vstBundles);
-        }
-    }
-
-    DBG("Found " + juce::String(filesToScan.size()) + " VST3 files/bundles to scan");
-
-    if (filesToScan.isEmpty()) {
-        // No files to scan, finish immediately
-        pluginCacheValid = true;
-        isCurrentlyScanning = false;
-
-        if (onPluginScanComplete) {
-            onPluginScanComplete();
-        }
         return;
     }
 
-    // Start the timer-based scanning
-    scanningTimer = std::make_unique<PluginScanningTimer>(*this);
-    scanningTimer->startTimer(10); // Scan one plugin every 10ms
+    DBG("Starting plugin scan...");
+    isCurrentlyScanning = true;
+
+    // Use timer-based scanning on the main thread (JUCE plugin formats require main thread)
+    juce::MessageManager::callAsync([this]() {
+        // Prepare the scan
+        filesToScan.clear();
+        currentScanIndex = 0;
+
+        juce::ScopedLock lock(pluginLock);
+        availablePlugins.clear();
+
+        // Get search paths
+        juce::StringArray searchPaths;
+        if (userConfig != nullptr) {
+            searchPaths = userConfig->getVSTSearchPaths();
+        } else {
+            searchPaths = UserConfig::getDefaultVSTSearchPaths();
+        }
+
+        DBG("=== Starting Plugin Scan ===");
+        DBG("Search paths: " + searchPaths.joinIntoString(", "));
+
+        // Collect all files to scan
+        auto supportedFormats = getSupportedFormats();
+        for (const auto &path : searchPaths) {
+            juce::File dir(path);
+            if (dir.exists() && dir.isDirectory()) {
+                DBG("Scanning directory recursively: " + dir.getFullPathName());
+
+                // Find plugin files for all supported formats (recursive search)
+                for (const auto &formatInfo : supportedFormats) {
+                    // Find files with the format's extensions (recursive)
+                    for (const auto &extension : formatInfo.fileExtensions) {
+                        juce::Array<juce::File> pluginFiles;
+                        dir.findChildFiles(pluginFiles, juce::File::findFiles, true, "*." + extension);
+                        filesToScan.addArray(pluginFiles);
+                    }
+
+                    // Find directories with the format's extensions (bundles, recursive)
+                    for (const auto &extension : formatInfo.directoryExtensions) {
+                        juce::Array<juce::File> pluginBundles;
+                        dir.findChildFiles(pluginBundles, juce::File::findDirectories, true, "*." + extension);
+                        filesToScan.addArray(pluginBundles);
+                    }
+                }
+            }
+        }
+
+        DBG("Found " + juce::String(filesToScan.size()) + " plugin files/bundles to scan");
+
+        if (filesToScan.isEmpty()) {
+            // No files to scan, finish immediately
+            pluginCacheValid = true;
+            isCurrentlyScanning = false;
+
+            if (onPluginScanComplete) {
+                onPluginScanComplete();
+            }
+            return;
+        }
+
+        // Start the timer-based scanning
+        scanningTimer.reset(new PluginScanningTimer(*this));
+        scanningTimer->startTimer(10); // Scan one plugin every 10ms
+    });
 }
 
-void VST3PluginHost::scanNextPlugin()
+void PluginHost::refreshPluginCache() {
+    pluginCacheValid = false;
+    startPluginScan();
+}
+
+void PluginHost::scanNextPlugin()
 {
     if (currentScanIndex >= filesToScan.size()) {
         // Scanning complete
@@ -979,7 +957,7 @@ void VST3PluginHost::scanNextPlugin()
         pluginCacheValid = true;
         isCurrentlyScanning = false;
 
-        DBG("=== VST3 Plugin Scan Complete ===");
+        DBG("=== Plugin Scan Complete ===");
         DBG("Final available plugins count: " + juce::String(availablePlugins.size()));
 
         if (onPluginScanComplete) {
@@ -991,32 +969,96 @@ void VST3PluginHost::scanNextPlugin()
         return;
     }
 
-    // Get VST3 format
-    juce::AudioPluginFormat *vst3Format = nullptr;
-    for (int i = 0; i < formatManager.getNumFormats(); ++i) {
-        auto *format = formatManager.getFormat(i);
-        if (format != nullptr && format->getName().containsIgnoreCase("VST3")) {
-            vst3Format = format;
-            break;
-        }
-    }
-
-    if (vst3Format == nullptr) {
-        DBG("ERROR: VST3 format not found!");
-        currentScanIndex = filesToScan.size(); // Skip to end
-        return;
-    }
+    // Process current file - format detection is handled in getFormatForFile
 
     // Process current file
     const auto& currentFile = filesToScan[currentScanIndex];
 
     juce::ScopedLock lock(pluginLock);
 
-    if (currentFile.isDirectory()) {
-        processVST3Bundle(currentFile, vst3Format, availablePlugins);
-    } else {
-        processVST3File(currentFile, vst3Format, availablePlugins);
+    if (auto *format = getFormatForFile(currentFile)) {
+        if (currentFile.isDirectory()) {
+            processPluginBundle(currentFile, format, availablePlugins);
+        } else {
+            processPluginFile(currentFile, format, availablePlugins);
+        }
     }
 
     currentScanIndex++;
+}
+
+//==============================================================================
+// Helper Methods for Multi-Format Support
+juce::Array<PluginHost::PluginFormatInfo> PluginHost::getSupportedFormats() const {
+    juce::Array<PluginFormatInfo> formats;
+    
+    // VST3 format
+    PluginFormatInfo vst3Info;
+    vst3Info.formatName = "VST3";
+    vst3Info.fileExtensions.add("vst3");
+    vst3Info.directoryExtensions.add("vst3");
+    formats.add(vst3Info);
+    
+    // VST2 format (when available)
+    PluginFormatInfo vst2Info;
+    vst2Info.formatName = "VST";
+    vst2Info.fileExtensions.add("dll");
+    vst2Info.fileExtensions.add("vst");
+    formats.add(vst2Info);
+    
+#if JUCE_MAC
+    // Audio Unit format (macOS only)
+    PluginFormatInfo auInfo;
+    auInfo.formatName = "AudioUnit";
+    auInfo.directoryExtensions.add("component");
+    auInfo.directoryExtensions.add("appex");
+    formats.add(auInfo);
+#endif
+
+    // CLAP format (future support)
+    PluginFormatInfo clapInfo;
+    clapInfo.formatName = "CLAP";
+    clapInfo.fileExtensions.add("clap");
+    formats.add(clapInfo);
+    
+    return formats;
+}
+
+juce::AudioPluginFormat* PluginHost::getFormatForFile(const juce::File &pluginFile) const {
+    juce::String extension = pluginFile.getFileExtension().toLowerCase().substring(1);
+    
+    // Check each registered format
+    for (int i = 0; i < formatManager.getNumFormats(); ++i) {
+        auto *format = formatManager.getFormat(i);
+        if (format == nullptr) continue;
+        
+        juce::String formatName = format->getName().toLowerCase();
+        
+        // VST3 format
+        if (formatName.contains("vst3") && 
+            (extension == "vst3" || (pluginFile.isDirectory() && extension == "vst3"))) {
+            return format;
+        }
+        
+        // VST2 format
+        if (formatName.contains("vst") && !formatName.contains("vst3") &&
+            (extension == "dll" || extension == "vst")) {
+            return format;
+        }
+        
+#if JUCE_MAC
+        // Audio Unit format
+        if (formatName.contains("audiounit") &&
+            (extension == "component" || extension == "appex")) {
+            return format;
+        }
+#endif
+        
+        // CLAP format (future)
+        if (formatName.contains("clap") && extension == "clap") {
+            return format;
+        }
+    }
+    
+    return nullptr;
 }

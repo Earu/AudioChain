@@ -1,7 +1,7 @@
 #include "PluginChainComponent.h"
 
 //==============================================================================
-PluginChainComponent::PluginChainComponent(VST3PluginHost &pluginHost_) : pluginHost(pluginHost_) {
+PluginChainComponent::PluginChainComponent(PluginHost &pluginHost_) : pluginHost(pluginHost_) {
     // Initialize scrollable plugin chain
     chainContainer = std::make_unique<PluginChainContainer>(*this);
     chainViewport.setViewedComponent(chainContainer.get(), false);
@@ -185,7 +185,7 @@ void PluginChainComponent::closePluginEditor(int slotIndex) {
     for (int i = editorWindows.size() - 1; i >= 0; --i) {
         auto *window = editorWindows[i];
         if (window->getSlotIndex() == slotIndex) {
-            // Close the VST3PluginHost editor first
+            // Close the PluginHost editor first
             pluginHost.closeEditorForPlugin(slotIndex);
 
             // Remove the window (this will delete it safely)
@@ -238,7 +238,7 @@ void PluginChainComponent::handleDraggedPlugin(int fromSlot, int toSlot) {
 //==============================================================================
 // PluginSlot Implementation
 //==============================================================================
-PluginChainComponent::PluginSlot::PluginSlot(int index, VST3PluginHost &host, PluginChainComponent &parent)
+PluginChainComponent::PluginSlot::PluginSlot(int index, PluginHost &host, PluginChainComponent &parent)
     : slotIndex(index), pluginHost(host), parentComponent(parent) {
     addAndMakeVisible(nameLabel);
     addAndMakeVisible(manufacturerLabel);
@@ -558,7 +558,7 @@ void PluginChainComponent::PluginSlot::itemDropped(const SourceDetails &dragSour
     repaint();
 }
 
-void PluginChainComponent::PluginSlot::setPluginInfo(const VST3PluginHost::PluginInfo &info) {
+void PluginChainComponent::PluginSlot::setPluginInfo(const PluginHost::PluginInfo &info) {
     pluginInfo = info;
 
     // Set text with uppercase plugin name for impact
@@ -833,7 +833,7 @@ void PluginChainComponent::PluginSlot::drawChromaticAberrationText(juce::Graphic
 //==============================================================================
 // PluginBrowser Implementation
 //==============================================================================
-PluginChainComponent::PluginBrowser::PluginBrowser(VST3PluginHost &host)
+PluginChainComponent::PluginBrowser::PluginBrowser(PluginHost &host)
     : pluginHost(host), searchPathsModel(*this), tabs(juce::TabbedButtonBar::TabsAtTop) {
     // Setup tabs with modern styling
     addAndMakeVisible(tabs);
@@ -1081,7 +1081,7 @@ void PluginChainComponent::PluginBrowser::refreshPluginList() {
         DBG("Plugin cache is invalid, starting async scan");
         isLoadingPlugins = true;
         pluginList.updateContent(); // Update to show loading state
-        pluginHost.scanForPluginsAsync();
+        pluginHost.scanForPlugins(false);
     }
 }
 

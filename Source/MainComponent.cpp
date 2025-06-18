@@ -20,10 +20,10 @@ MainComponent::MainComponent() {
     userConfig = std::make_unique<UserConfig>();
     DBG("UserConfig created successfully");
 
-    DBG("Creating VST3PluginHost...");
-    pluginHost = std::make_unique<VST3PluginHost>();
+    DBG("Creating PluginHost...");
+    pluginHost = std::make_unique<PluginHost>();
     pluginHost->setUserConfig(userConfig.get());
-    DBG("VST3PluginHost created successfully");
+    DBG("PluginHost created successfully");
 
     DBG("Creating PluginChainComponent...");
     pluginChainComponent = std::make_unique<PluginChainComponent>(*pluginHost);
