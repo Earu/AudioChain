@@ -11,43 +11,43 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    
+
     - name: Setup CMake
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
         cmake-version: '3.22.x'
-    
+
     - name: Configure CMake build
       run: |
         mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-    
+
     - name: Build Release
       run: |
         cd build
         cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
-    
+
     - name: Verify microphone permissions in built app
       run: |
         # Find the built app in the CMake build directory
         APP_PATH=$(find build -name "*.app" -type d | head -1)
-        
+
         if [ -n "$APP_PATH" ]; then
           echo "Checking Info.plist in: $APP_PATH"
           INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
-          
+
           if [ -f "$INFO_PLIST_PATH" ]; then
             echo "=== Info.plist contents ==="
             plutil -p "$INFO_PLIST_PATH"
             echo ""
-            
+
             # Check specifically for microphone permission
             if plutil -p "$INFO_PLIST_PATH" | grep -q "NSMicrophoneUsageDescription"; then
               echo "✓ Microphone permission successfully included in final app"
@@ -65,19 +65,19 @@ jobs:
           echo "Listing build directory contents:"
           find build -type f -name "*.app" || find build -type d
         fi
-    
+
     - name: Create DMG
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
         # Install create-dmg for creating the DMG
         brew install create-dmg
-        
+
         # Find the built app in the CMake build directory
         APP_PATH=$(find build -name "*.app" -type d | head -1)
-        
+
         if [ -n "$APP_PATH" ]; then
           echo "Found app at: $APP_PATH"
-          
+
           # Create DMG
           create-dmg \
             --volname "AudioChain" \
@@ -93,54 +93,95 @@ jobs:
           echo "App not found, listing build directory contents..."
           find build -type f -name "*.app" || find build -type d
         fi
-    
+
     - name: Upload macOS artifacts
       uses: actions/upload-artifact@v4
       with:
         name: AudioChain-macOS
-        path: |
-          AudioChain-macOS.dmg
-          build/**/*.app
+        path: AudioChain-macOS.dmg
         if-no-files-found: ignore
 
   build-windows:
     runs-on: windows-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    
+
     - name: Setup Visual Studio
       uses: microsoft/setup-msbuild@v2
-    
+
     - name: Setup CMake
       uses: jwlawson/actions-setup-cmake@v1.14
       with:
         cmake-version: '3.22.x'
-    
+
+    - name: Download and setup ASIO SDK
+      shell: powershell
+      run: |
+        # Download ASIO SDK
+        Write-Host "Downloading ASIO SDK..."
+        $asioUrl = "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip"
+        Invoke-WebRequest -Uri $asioUrl -OutFile "asio_sdk.zip" -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+        # Create external directory if it doesn't exist
+        if (-not (Test-Path "external")) {
+          New-Item -ItemType Directory -Force -Path "external"
+        }
+
+        # Extract to external directory
+        Write-Host "Extracting ASIO SDK..."
+        Expand-Archive -Path "asio_sdk.zip" -DestinationPath "external" -Force
+
+        # Verify extraction
+        if (Test-Path "external/asiosdk_2.3.3_2019-06-14") {
+          Write-Host "✓ ASIO SDK extracted successfully to external/asiosdk_2.3.3_2019-06-14"
+          Get-ChildItem "external/asiosdk_2.3.3_2019-06-14" | ForEach-Object { Write-Host "  $($_.Name)" }
+        } else {
+          Write-Host "❌ ASIO SDK extraction failed"
+          Write-Host "Available directories in external:"
+          Get-ChildItem "external" | ForEach-Object { Write-Host "  $($_.Name)" }
+
+          # Try alternative extraction path
+          if (Test-Path "external/asiosdk") {
+            Write-Host "Found ASIO SDK in alternative location, renaming..."
+            Move-Item "external/asiosdk" "external/asiosdk_2.3.3_2019-06-14"
+          }
+        }
+
     - name: Configure CMake build
       run: |
         mkdir build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release -A x64
-    
+
     - name: Build Release
       run: |
         cd build
         cmake --build . --config Release --parallel
-    
+
     - name: Verify build output
       shell: powershell
       run: |
         # Find and verify the built executable
         $exePath = Get-ChildItem -Path "build" -Recurse -Filter "AudioChain.exe" | Select-Object -First 1
-        
+
         if ($exePath) {
           Write-Host "✓ Build successful! Executable found at: $($exePath.FullName)"
           Write-Host "File size: $('{0:N0}' -f $exePath.Length) bytes"
-          
+          Write-Host ""
+
+          # Check if ASIO SDK was available during build
+          if (Test-Path "external/asiosdk_2.3.3_2019-06-14") {
+            Write-Host "✓ ASIO SDK detected - Build includes ASIO support for low-latency audio"
+            Write-Host "✓ DirectSound and WASAPI support also enabled"
+          } else {
+            Write-Host "ℹ️  ASIO SDK not found - Build includes DirectSound and WASAPI support"
+            Write-Host "ℹ️  For ASIO support, ensure the SDK is downloaded during CI"
+          }
+
           # Check if it's a valid PE file
           $fileHeader = Get-Content $exePath.FullName -Encoding Byte -TotalCount 2
           if ($fileHeader[0] -eq 77 -and $fileHeader[1] -eq 90) {
@@ -154,36 +195,12 @@ jobs:
           Get-ChildItem -Path "build" -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
           exit 1
         }
-    
-    - name: Package Windows build
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      shell: powershell
-      run: |
-        # Find the built executable in the CMake build directory
-        $exePath = Get-ChildItem -Path "build" -Recurse -Filter "AudioChain.exe" | Select-Object -First 1
-        
-        if ($exePath) {
-          Write-Host "Found executable at: $($exePath.FullName)"
-          $releaseDir = $exePath.Directory.FullName
-          
-          # Create distribution folder
-          New-Item -ItemType Directory -Force -Path "AudioChain-Windows-Release"
-          Copy-Item -Path "$releaseDir\*" -Destination "AudioChain-Windows-Release" -Recurse -Force
-          
-          # Create ZIP
-          Compress-Archive -Path "AudioChain-Windows-Release\*" -DestinationPath "AudioChain-Windows.zip"
-        } else {
-          Write-Host "Executable not found, listing build directory contents..."
-          Get-ChildItem -Path "build" -Recurse -Include "*.exe" | ForEach-Object { Write-Host $_.FullName }
-        fi
-    
+
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
       with:
         name: AudioChain-Windows
-        path: |
-          build/**/*.exe
-          AudioChain-Windows.zip
+        path: build/**/AudioChain.exe
         if-no-files-found: ignore
 
   release:
@@ -192,14 +209,14 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
-    
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
@@ -207,24 +224,24 @@ jobs:
         name: AudioChain v${{ github.run_number }}
         body: |
           ## AudioChain Release v${{ github.run_number }}
-          
+
           Cross-platform audio processing application with VST plugin chain support.
-          
+
           ### Downloads
           - **macOS**: AudioChain-macOS.dmg
-          - **Windows**: AudioChain-Windows.zip
-          
+          - **Windows**: AudioChain.exe
+
           ### Features
           - Real-time audio processing through VST plugin chains
           - Support for VST2, VST3, and Audio Unit (macOS) plugins
           - Cross-platform compatibility (macOS and Windows)
           - Modern JUCE-based GUI
-          
+
           Built from commit: ${{ github.sha }}
         files: |
           AudioChain-macOS/AudioChain-macOS.dmg
-          AudioChain-Windows/AudioChain-Windows.zip
+          AudioChain-Windows/AudioChain.exe
         draft: false
         prerelease: false
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
