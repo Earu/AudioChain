@@ -32,14 +32,21 @@ jobs:
         # Make Projucer executable
         sudo chmod +x /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer
     
-    - name: Setup JUCE global path
+    - name: Configure JUCE module paths
       run: |
-        # Set up global JUCE modules path
-        mkdir -p ~/Library/Application\ Support/Projucer
-        echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/Library/Application\ Support/Projucer/Projucer.settings
-        echo '<PROPERTIES>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
-        echo '  <VALUE name="defaultJuceModulePath" val="/usr/local/JUCE/modules"/>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
-        echo '</PROPERTIES>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
+        # Update the .jucer file to set correct module paths for CI
+        sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_devices" path=""/>|<MODULEPATH id="juce_audio_devices" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_formats" path=""/>|<MODULEPATH id="juce_audio_formats" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_processors" path=""/>|<MODULEPATH id="juce_audio_processors" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_audio_utils" path=""/>|<MODULEPATH id="juce_audio_utils" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_core" path=""/>|<MODULEPATH id="juce_core" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_data_structures" path=""/>|<MODULEPATH id="juce_data_structures" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_dsp" path=""/>|<MODULEPATH id="juce_dsp" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_events" path=""/>|<MODULEPATH id="juce_events" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
     
     - name: Setup VST2 SDK (if available)
       run: |
@@ -114,17 +121,22 @@ jobs:
         Expand-Archive -Path "juce.zip" -DestinationPath "juce-temp"
         Move-Item -Path "juce-temp\JUCE" -Destination "C:\JUCE"
     
-    - name: Setup JUCE global path
+    - name: Configure JUCE module paths
       shell: powershell
       run: |
-        # Set up global JUCE modules path
-        $projucerSettingsDir = "$env:APPDATA\Projucer"
-        New-Item -ItemType Directory -Force -Path $projucerSettingsDir
-        $settingsFile = "$projucerSettingsDir\Projucer.settings"
-        '<?xml version="1.0" encoding="UTF-8"?>' | Out-File -FilePath $settingsFile -Encoding UTF8
-        '<PROPERTIES>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
-        '  <VALUE name="defaultJuceModulePath" val="C:\JUCE\modules"/>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
-        '</PROPERTIES>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
+        # Update the .jucer file to set correct module paths for CI
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_basics" path=""/>', '<MODULEPATH id="juce_audio_basics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_devices" path=""/>', '<MODULEPATH id="juce_audio_devices" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_formats" path=""/>', '<MODULEPATH id="juce_audio_formats" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_processors" path=""/>', '<MODULEPATH id="juce_audio_processors" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_utils" path=""/>', '<MODULEPATH id="juce_audio_utils" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_core" path=""/>', '<MODULEPATH id="juce_core" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_data_structures" path=""/>', '<MODULEPATH id="juce_data_structures" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_dsp" path=""/>', '<MODULEPATH id="juce_dsp" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_events" path=""/>', '<MODULEPATH id="juce_events" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_graphics" path=""/>', '<MODULEPATH id="juce_graphics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_gui_basics" path=""/>', '<MODULEPATH id="juce_gui_basics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
+        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_gui_extra" path=""/>', '<MODULEPATH id="juce_gui_extra" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
     
     - name: Setup VST2 SDK (if available)
       shell: powershell
