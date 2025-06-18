@@ -984,8 +984,8 @@ void PluginChainComponent::PluginBrowser::resized() {
 }
 
 int PluginChainComponent::PluginBrowser::getNumRows() {
-    // Show at least 1 row when loading to display the loading message
-    if (isLoadingPlugins && pluginHost.getAvailablePlugins().size() == 0) {
+    // Show only 1 row when loading to display the loading message (clears old plugin rows)
+    if (isLoadingPlugins) {
         return 1;
     }
     return pluginHost.getAvailablePlugins().size();
@@ -1019,8 +1019,8 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
         g.drawRect(bounds, 1.0f);
     }
 
-    if (isLoadingPlugins && rowNumber == 0) {
-        // Show loading indicator with animated style
+    if (isLoadingPlugins) {
+        // Show loading indicator with animated style (we only have 1 row when loading)
         g.setColour(juce::Colour(0xffffaa00)); // Orange for loading
         g.setFont(juce::Font("Arial", 14.0f, juce::Font::bold));
         juce::String loadingText = "SCANNING FOR PLUGINS...";
@@ -1057,8 +1057,8 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
 }
 
 void PluginChainComponent::PluginBrowser::listBoxItemDoubleClicked(int row, const juce::MouseEvent &) {
-    // Don't do anything if we're loading or if it's the loading indicator row
-    if (isLoadingPlugins && row == 0 && pluginHost.getAvailablePlugins().size() == 0) {
+    // Don't do anything if we're loading (only shows loading message)
+    if (isLoadingPlugins) {
         return;
     }
 
@@ -1071,7 +1071,12 @@ void PluginChainComponent::PluginBrowser::listBoxItemDoubleClicked(int row, cons
 
 void PluginChainComponent::PluginBrowser::buttonClicked(juce::Button *button) {
     if (button == &refreshButton) {
-        refreshPluginList();
+        // Force a fresh plugin scan, ignoring cache
+        DBG("Refresh button clicked - forcing plugin cache refresh");
+        isLoadingPlugins = true;
+        pluginList.updateContent(); // Update to show loading state
+        pluginList.repaint(); // Force immediate repaint to clear old backgrounds
+        pluginHost.refreshPluginCache();
     } else if (button == &closeButton) {
         setVisible(false);
     } else if (button == &addPathButton) {
@@ -1084,6 +1089,8 @@ void PluginChainComponent::PluginBrowser::buttonClicked(juce::Button *button) {
 }
 
 void PluginChainComponent::PluginBrowser::refreshPluginList() {
+    // This method respects the cache - use for initial loading or when cache might be valid
+    // For forced refresh (like the REFRESH PLUGINS button), call pluginHost.refreshPluginCache() directly
     if (pluginHost.isPluginCacheValid()) {
         // Cache is valid, use it immediately
         DBG("Plugin cache is valid, using cached results");
