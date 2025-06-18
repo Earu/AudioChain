@@ -78,7 +78,25 @@ jobs:
     
     - name: Generate Xcode project
       run: |
-        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
+        # Set proper ownership of JUCE installation
+        sudo chown -R runner:staff /usr/local/JUCE/
+        
+        # Try generating the project with verbose output
+        /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer --verbose || {
+          echo "=== Projucer failed, trying alternative approach ==="
+          
+          # Try using a local JUCE installation instead
+          cp -r /usr/local/JUCE ./JUCE_LOCAL
+          
+          # Update paths to use local installation
+          sed -i '' 's|/usr/local/JUCE/modules|./JUCE_LOCAL/modules|g' AudioChain.jucer
+          
+          echo "=== Updated to local paths ==="
+          grep "MODULEPATH" AudioChain.jucer | head -12
+          
+          # Try again with local paths
+          ./JUCE_LOCAL/Projucer.app/Contents/MacOS/Projucer --resave AudioChain.jucer
+        }
     
     - name: Build Debug
       run: |
