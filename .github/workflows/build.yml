@@ -140,7 +140,7 @@ jobs:
           Built from commit: ${{ github.sha }}
         files: |
           AudioChain-macOS/AudioChain-macOS.dmg
-          AudioChain-Windows/AudioChain.exe
+          AudioChain-Windows/AudioChain_artefacts/Release/AudioChain.exe
         draft: false
         prerelease: false
       env:
