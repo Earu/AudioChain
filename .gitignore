@@ -28,3 +28,5 @@ Builds/VisualStudio2022/*.tlog
 Builds/VisualStudio2022/*.res
 Builds/VisualStudio2022/*.lastbuildstate
 Builds/VisualStudio2022/*.recipe
+
+build/*

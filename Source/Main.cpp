@@ -1,5 +1,8 @@
 #include "MainComponent.h"
-#include <JuceHeader.h>
+#include <juce_core/juce_core.h>
+#include <juce_events/juce_events.h>
+#include <juce_graphics/juce_graphics.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 
 //==============================================================================
 class AudioChainApplication : public juce::JUCEApplication {
@@ -7,8 +10,8 @@ class AudioChainApplication : public juce::JUCEApplication {
     //==============================================================================
     AudioChainApplication() {}
 
-    const juce::String getApplicationName() override { return ProjectInfo::projectName; }
-    const juce::String getApplicationVersion() override { return ProjectInfo::versionString; }
+    const juce::String getApplicationName() override { return "AudioChain"; }
+    const juce::String getApplicationVersion() override { return "1.0.0"; }
     bool moreThanOneInstanceAllowed() override { return true; }
 
     //==============================================================================

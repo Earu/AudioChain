@@ -5,7 +5,13 @@
 #include "PluginChainComponent.h"
 #include "UserConfig.h"
 #include "PluginHost.h"
-#include <JuceHeader.h>
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_devices/juce_audio_devices.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_core/juce_core.h>
+#include <juce_graphics/juce_graphics.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 
 //==============================================================================
 // Enhanced Modern Dark LookAndFeel with gradients and visual effects
