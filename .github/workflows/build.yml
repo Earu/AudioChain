@@ -25,7 +25,7 @@ jobs:
         unzip juce.zip
         sudo mv JUCE /usr/local/JUCE
     
-    - name: Configure JUCE module paths
+    - name: Configure JUCE module paths and verify microphone permissions
       run: |
         # Update the .jucer file to set correct module paths for CI
         sed -i '' 's|<MODULEPATH id="juce_audio_basics" path=""/>|<MODULEPATH id="juce_audio_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
@@ -40,6 +40,14 @@ jobs:
         sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
         sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
         sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        
+        # Verify microphone permission is configured
+        echo "Verifying microphone permission configuration..."
+        if grep -q "NSMicrophoneUsageDescription" AudioChain.jucer; then
+          echo "✓ Microphone permission found in .jucer file"
+        else
+          echo "✗ Microphone permission not found - this may cause runtime issues"
+        fi
     
     - name: Setup VST2 SDK (if available)
       run: |
@@ -68,11 +76,41 @@ jobs:
             <key>method</key>
             <string>mac-application</string>
             <key>signingStyle</key>
-            <string>automatic</string>            
+            <string>automatic</string>
         </dict>
         </plist>
         EOF
         )
+    
+    - name: Verify microphone permissions in built app
+      run: |
+        # Find the built app
+        APP_PATH=$(find AudioChain-Export -name "*.app" -type d | head -1)
+        
+        if [ -n "$APP_PATH" ]; then
+          echo "Checking Info.plist in: $APP_PATH"
+          INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
+          
+          if [ -f "$INFO_PLIST_PATH" ]; then
+            echo "=== Info.plist contents ==="
+            plutil -p "$INFO_PLIST_PATH"
+            echo ""
+            
+            # Check specifically for microphone permission
+            if plutil -p "$INFO_PLIST_PATH" | grep -q "NSMicrophoneUsageDescription"; then
+              echo "✓ Microphone permission successfully included in final app"
+              echo "Permission text:"
+              plutil -p "$INFO_PLIST_PATH" | grep -A1 "NSMicrophoneUsageDescription"
+            else
+              echo "⚠️  Warning: NSMicrophoneUsageDescription not found in final Info.plist"
+              echo "This may cause the app to crash when requesting microphone access on macOS"
+            fi
+          else
+            echo "⚠️  Warning: Info.plist not found at expected location"
+          fi
+        else
+          echo "⚠️  Warning: Built app not found, cannot verify permissions"
+        fi
     
     - name: Create DMG
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
