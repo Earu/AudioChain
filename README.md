@@ -74,6 +74,25 @@ If you prefer to install manually or the script doesn't work:
 - **Scanning**: VST2 plugins are automatically discovered during recursive directory scanning
 - **Compatibility**: Only 64-bit (matches host arch) VST2 plugins are supported
 
+## ASIO SDK Setup (Optional)
+
+AudioChain supports ASIO for low-latency audio on Windows. **In CI/CD builds, the ASIO SDK is automatically downloaded and enabled.** For local development, you can optionally set up ASIO support manually.
+
+### For CI/CD Builds
+
+✅ **Automatic Setup**: The GitHub Actions workflow automatically downloads the ASIO SDK 2.3.3 and enables ASIO support in Windows builds.
+
+### For Local Development (Optional)
+
+To enable ASIO support in your local development environment:
+
+1. Visit [Steinberg Developers](https://www.steinberg.net/developers/)
+2. Download the ASIO SDK 2.3
+3. Extract the downloaded SDK to `external/asiosdk_2.3.3_2019-06-14/`
+4. Rebuild the project
+
+**Note:** ASIO support is optional for local development. AudioChain will work without it using DirectSound and WASAPI drivers on Windows.
+
 ## Usage
 
 ### Setting Up Audio Routing

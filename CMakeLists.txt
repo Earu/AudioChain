@@ -81,7 +81,6 @@ elseif(WIN32)
     target_compile_definitions(AudioChain PRIVATE
         JUCE_DIRECTSOUND=1
         JUCE_WASAPI=1
-        JUCE_ASIO=1
         JUCE_USE_WINRT_MIDI=1
     )
 
@@ -111,46 +110,22 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/VST_SDK_2.4")
     )
 endif()
 
-# ASIO SDK support - Download automatically when on Windows
+# ASIO SDK support - Only if manually provided in external directory
 if(WIN32)
-    # Download ASIO SDK using FetchContent
-    FetchContent_Declare(
-        asio_sdk
-        URL https://www.steinberg.net/asiosdk
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-
-    # Set configure and build commands to empty since ASIO SDK is headers-only
-    set(asio_sdk_CONFIGURE_COMMAND "")
-    set(asio_sdk_BUILD_COMMAND "")
-
-    FetchContent_MakeAvailable(asio_sdk)
-
-    if(asio_sdk_POPULATED)
-        # The ASIO SDK is directly in the source directory without nested folders
+    # Check if ASIO SDK is available in external directory
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14")
+        message(STATUS "ASIO SDK found in external directory")
         target_include_directories(AudioChain PRIVATE
-            ${asio_sdk_SOURCE_DIR}/common
-            ${asio_sdk_SOURCE_DIR}/host
-            ${asio_sdk_SOURCE_DIR}/host/pc
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/common
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/host
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/host/pc
         )
         target_compile_definitions(AudioChain PRIVATE
             JUCE_ASIO=1
         )
-        message(STATUS "ASIO SDK found and configured at: ${asio_sdk_SOURCE_DIR}")
+        message(STATUS "ASIO support enabled")
     else()
-        # Fallback to external directory if download fails
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/asiosdk_2.3.3_2019-06-14")
-            target_include_directories(AudioChain PRIVATE
-                ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/asiosdk_2.3.3_2019-06-14/common
-                ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/asiosdk_2.3.3_2019-06-14/host
-                ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/asiosdk_2.3.3_2019-06-14/host/pc
-            )
-            target_compile_definitions(AudioChain PRIVATE
-                JUCE_ASIO=1
-            )
-            message(STATUS "Using fallback ASIO SDK from external directory")
-        else()
-            message(WARNING "ASIO SDK not available - ASIO support will be disabled")
-        endif()
+        message(STATUS "ASIO SDK not found - ASIO support disabled")
+        message(STATUS "To enable ASIO: Extract ASIO SDK to external/asiosdk_2.3.3_2019-06-14/")
     endif()
 endif()
