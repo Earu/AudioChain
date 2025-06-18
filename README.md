@@ -1,6 +1,6 @@
-# AudioChain - Cross-Platform Audio Processing with VST3 Plugin Chain
+# AudioChain - Cross-Platform Audio Processing with Multi-Format Plugin Chain
 
-AudioChain is a JUCE-based application that processes audio input through a customizable VST3 plugin chain. This enables real-time audio processing and effects for any audio source on your system, supporting both macOS and Windows platforms.
+AudioChain is a JUCE-based application that processes audio input through a customizable plugin chain supporting VST2, VST3, and Audio Unit formats. This enables real-time audio processing and effects for any audio source on your system, supporting both macOS and Windows platforms.
 
 ![image](https://github.com/user-attachments/assets/c2374a4a-3fb8-4b78-977c-84ad483ba88d)
 
@@ -44,6 +44,34 @@ cd AudioChain
 # Then build using Xcode (macOS) or Visual Studio (Windows)
 ```
 
+### VST2 Support (Optional)
+
+AudioChain supports VST2, VST3, and Audio Unit plugins. VST2 support requires the legacy VST2 SDK headers due to licensing restrictions. We've included an automated installation script:
+
+```bash
+# Run the VST2 SDK installation script
+chmod +x install_vst2_sdk.sh
+./install_vst2_sdk.sh
+```
+
+**What this script does:**
+1. Adds the VST2 SDK as a git submodule from a community archive
+2. Copies the required headers to your JUCE installation
+3. Regenerates the project with VST2 support enabled
+4. Optionally builds the project to test VST2 functionality
+
+**Manual Installation:**
+If you prefer to install manually or the script doesn't work:
+1. Download VST2 SDK from: https://github.com/R-Tur/VST_SDK_2.4
+2. Copy `pluginterfaces/vst2.x/*` to `[JUCE_PATH]/modules/juce_audio_processors/format_types/VST3_SDK/pluginterfaces/vst2.x/`
+3. Regenerate the project with Projucer
+4. Build the project
+
+**VST2 Plugin Support:**
+- **File Extensions**: `.vst` (both files and bundles on macOS), `.dll` (Windows)
+- **Scanning**: VST2 plugins are automatically discovered during recursive directory scanning
+- **Compatibility**: Only 64-bit (matches host arch) VST2 plugins are supported
+
 ## Usage
 
 ### Setting Up Audio Routing
@@ -63,7 +91,7 @@ cd AudioChain
 **Note**: Creating true virtual audio devices requires system-level drivers. AudioChain works best with existing virtual audio solutions like BlackHole (macOS) or VB-Audio Cable (Windows).
 
 ### Managing the Plugin Chain
-1. **Adding Plugins**: Click "Add Plugin" to browse available VST3 plugins
+1. **Adding Plugins**: Click "Add Plugin" to browse available plugins
 2. **Reordering**: Drag plugin slots to reorder the processing chain
 3. **Bypass**: Use the bypass button to enable/disable individual plugins
 4. **Editing**: Click "Edit" to open a plugin's native editor interface
@@ -83,9 +111,18 @@ cd AudioChain
 - Channels: Stereo (2 channels)
 
 ### Plugin Paths
-VST3 plugins are automatically scanned from standard locations:
+Plugins are automatically scanned from standard locations (recursively):
+
+**VST3 Plugins:**
 - **macOS**: `/Library/Audio/Plug-Ins/VST3/`, `~/Library/Audio/Plug-Ins/VST3/`
 - **Windows**: `C:\Program Files\Common Files\VST3\`, `C:\Program Files (x86)\Common Files\VST3\`
+
+**VST2 Plugins (if VST2 SDK is installed):**
+- **macOS**: `/Library/Audio/Plug-Ins/VST/`, `~/Library/Audio/Plug-Ins/VST/`
+- **Windows**: `C:\Program Files\Steinberg\VSTPlugins\`, `C:\Program Files (x86)\Steinberg\VSTPlugins\`
+
+**Audio Unit Plugins (macOS only):**
+- **macOS**: `/Library/Audio/Plug-Ins/Components/`, `~/Library/Audio/Plug-Ins/Components/`
 
 ## Troubleshooting
 

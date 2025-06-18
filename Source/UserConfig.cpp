@@ -77,17 +77,48 @@ juce::StringArray UserConfig::getDefaultVSTSearchPaths() {
     juce::StringArray defaultPaths;
 
 #if JUCE_MAC
+    // VST3 paths
     defaultPaths.add("/Library/Audio/Plug-Ins/VST3");
     defaultPaths.add("~/Library/Audio/Plug-Ins/VST3");
+    
+    // VST2 paths (if VST2 SDK is available)
+#if JUCE_PLUGINHOST_VST
+    defaultPaths.add("/Library/Audio/Plug-Ins/VST");
+    defaultPaths.add("~/Library/Audio/Plug-Ins/VST");
+#endif
+    
+    // Audio Unit paths
+    defaultPaths.add("/Library/Audio/Plug-Ins/Components");
+    defaultPaths.add("~/Library/Audio/Plug-Ins/Components");
+    
 #elif JUCE_WINDOWS
+    // VST3 paths
     defaultPaths.add("C:\\Program Files\\Common Files\\VST3");
+    defaultPaths.add("C:\\Program Files (x86)\\Common Files\\VST3");
     defaultPaths.add(juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
                          .getChildFile("VST3")
                          .getFullPathName());
+    
+    // VST2 paths (if VST2 SDK is available)
+#if JUCE_PLUGINHOST_VST
+    defaultPaths.add("C:\\Program Files\\Steinberg\\VSTPlugins");
+    defaultPaths.add("C:\\Program Files (x86)\\Steinberg\\VSTPlugins");
+    defaultPaths.add("C:\\Program Files\\VSTPlugins");
+    defaultPaths.add("C:\\Program Files (x86)\\VSTPlugins");
+#endif
+    
 #elif JUCE_LINUX
+    // VST3 paths
     defaultPaths.add("~/.vst3");
     defaultPaths.add("/usr/lib/vst3");
     defaultPaths.add("/usr/local/lib/vst3");
+    
+    // VST2 paths (if VST2 SDK is available)
+#if JUCE_PLUGINHOST_VST
+    defaultPaths.add("~/.vst");
+    defaultPaths.add("/usr/lib/vst");
+    defaultPaths.add("/usr/local/lib/vst");
+#endif
 #endif
 
     return defaultPaths;
