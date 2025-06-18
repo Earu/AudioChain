@@ -25,54 +25,100 @@ AudioChain is a JUCE-based application that processes audio input through a cust
 ## Installation
 
 ### Prerequisites
-1. Install JUCE Framework from [juce.com](https://juce.com)
-2. Ensure you have VST3 plugins installed on your system
+1. **CMake** 3.15 or later
+2. **C++ Compiler** with C++17 support:
+   - **macOS**: Xcode 12.0 or later (with Xcode Command Line Tools)
+   - **Windows**: Visual Studio 2019/2022 (Community edition is free)
+3. **Git** (for fetching JUCE dependency)
+4. Ensure you have VST3 plugins installed on your system
 
 ### Building from Source
-1. Clone or download this repository
-2. Open `AudioChain.jucer` in the Projucer
-3. Set your JUCE modules path in Projucer
-4. Export the project for your platform:
-   - **macOS**: Select "Xcode (MacOSX)" target
-   - **Windows**: Select "Visual Studio 2022" target
-5. Build the project in your IDE
 
+AudioChain uses CMake for cross-platform building with automatic JUCE dependency management.
+
+#### Quick Start
 ```bash
 # Clone the repository
 git clone <your-repo-url>
 cd AudioChain
 
-# Open in Projucer and export for your platform
-# Then build using Xcode (macOS) or Visual Studio (Windows)
+# Initialize and update submodules (includes VST2 SDK)
+git submodule update --init --recursive
+
+# Create build directory
+mkdir build
+cd build
+
+# Configure the project
+cmake ..
+
+# Build the project
+cmake --build . --config Release
 ```
 
-### VST2 Support (Optional)
+#### Platform-Specific Instructions
 
-AudioChain supports VST2, VST3, and Audio Unit plugins. VST2 support requires the legacy VST2 SDK headers due to licensing restrictions. We've included an automated installation script:
-
+**macOS:**
 ```bash
-# Run the VST2 SDK installation script
-chmod +x install_vst2_sdk.sh
-./install_vst2_sdk.sh
+# Initialize submodules first
+git submodule update --init --recursive
+
+# Configure for Xcode (optional)
+cmake -G "Xcode" ..
+
+# Or build directly with make
+cmake ..
+make -j$(nproc)
 ```
 
-**What this script does:**
-1. Adds the VST2 SDK as a git submodule from a community archive
-2. Copies the required headers to your JUCE installation
-3. Regenerates the project with VST2 support enabled
-4. Optionally builds the project to test VST2 functionality
+**Windows:**
+```bash
+# Initialize submodules first
+git submodule update --init --recursive
 
-**Manual Installation:**
-If you prefer to install manually or the script doesn't work:
-1. Download VST2 SDK from: https://github.com/R-Tur/VST_SDK_2.4
-2. Copy `pluginterfaces/vst2.x/*` to `[JUCE_PATH]/modules/juce_audio_processors/format_types/VST3_SDK/pluginterfaces/vst2.x/`
-3. Regenerate the project with Projucer
-4. Build the project
+# Configure for Visual Studio 2022
+cmake -G "Visual Studio 17 2022" -A x64 ..
+
+# Or configure for Visual Studio 2019
+cmake -G "Visual Studio 16 2019" -A x64 ..
+
+# Build
+cmake --build . --config Release
+```
+
+#### Build Options
+
+**Debug Build:**
+```bash
+cmake --build . --config Debug
+```
+
+**Specify Build Type (macOS):**
+```bash
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build .
+```
+
+The built application will be located in:
+- **Windows**: `build/AudioChain_artefacts/Release/AudioChain.exe`
+- **macOS**: `build/AudioChain_artefacts/Release/AudioChain.app`
+
+### VST2 Support (Included)
+
+AudioChain supports VST2, VST3, and Audio Unit plugins. **VST2 support is automatically enabled through the included git submodule.**
+
+**VST2 SDK Setup:**
+The VST2 SDK is included as a git submodule and will be automatically available when you initialize submodules:
+```bash
+# VST2 SDK is automatically included when you run:
+git submodule update --init --recursive
+```
 
 **VST2 Plugin Support:**
 - **File Extensions**: `.vst` (both files and bundles on macOS), `.dll` (Windows)
 - **Scanning**: VST2 plugins are automatically discovered during recursive directory scanning
-- **Compatibility**: Only 64-bit (matches host arch) VST2 plugins are supported
+- **Auto-Detection**: CMake automatically enables VST2 support when the submodule is initialized
+- **Source**: VST2 SDK from https://github.com/R-Tur/VST_SDK_2.4 (included as submodule)
 
 ## ASIO SDK Setup (Optional)
 
@@ -88,10 +134,16 @@ To enable ASIO support in your local development environment:
 
 1. Visit [Steinberg Developers](https://www.steinberg.net/developers/)
 2. Download the ASIO SDK 2.3
-3. Extract the downloaded SDK to `external/asiosdk_2.3.3_2019-06-14/`
-4. Rebuild the project
+3. Extract the downloaded SDK to `external/asiosdk_2.3.3_2019-06-14/` in your AudioChain project directory
+4. CMake will automatically detect and enable ASIO support if the SDK is present
+5. Rebuild the project:
+   ```bash
+   cd build
+   cmake ..
+   cmake --build . --config Release
+   ```
 
-**Note:** ASIO support is optional for local development. AudioChain will work without it using DirectSound and WASAPI drivers on Windows.
+**Note:** ASIO support is optional for local development. AudioChain will work without it using DirectSound and WASAPI drivers on Windows. CMake will automatically configure ASIO support when the SDK is detected.
 
 ## Usage
 
