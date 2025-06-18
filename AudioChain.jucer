@@ -10,10 +10,10 @@
       <FILE id="MainComponent.cpp" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
       <FILE id="Main.cpp" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
-      <FILE id="VST3PluginHost.h" name="VST3PluginHost.h" compile="0" resource="0"
-            file="Source/VST3PluginHost.h"/>
-      <FILE id="VST3PluginHost.cpp" name="VST3PluginHost.cpp" compile="1"
-            resource="0" file="Source/VST3PluginHost.cpp"/>
+      <FILE id="PluginHost.h" name="PluginHost.h" compile="0" resource="0"
+            file="Source/PluginHost.h"/>
+      <FILE id="PluginHost.cpp" name="PluginHost.cpp" compile="1"
+            resource="0" file="Source/PluginHost.cpp"/>
       <FILE id="AudioProcessor.h" name="AudioProcessor.h" compile="0" resource="0"
             file="Source/AudioProcessor.h"/>
       <FILE id="AudioProcessor.cpp" name="AudioProcessor.cpp" compile="1"
