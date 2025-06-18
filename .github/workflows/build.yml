@@ -115,59 +115,52 @@ jobs:
     - name: Setup Visual Studio
       uses: microsoft/setup-msbuild@v2
     
-    - name: Install JUCE
-      shell: powershell
-      run: |
-        # Download and install JUCE
-        Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-windows.zip" -OutFile "juce.zip"
-        Expand-Archive -Path "juce.zip" -DestinationPath "juce-temp"
-        Move-Item -Path "juce-temp\JUCE" -Destination "C:\JUCE"
+    - name: Setup CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.22.x'
     
-    - name: Configure JUCE module paths
-      shell: powershell
+    - name: Configure CMake build
       run: |
-        # Update the .jucer file to set correct module paths for CI
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_basics" path=""/>', '<MODULEPATH id="juce_audio_basics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_devices" path=""/>', '<MODULEPATH id="juce_audio_devices" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_formats" path=""/>', '<MODULEPATH id="juce_audio_formats" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_processors" path=""/>', '<MODULEPATH id="juce_audio_processors" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_audio_utils" path=""/>', '<MODULEPATH id="juce_audio_utils" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_core" path=""/>', '<MODULEPATH id="juce_core" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_data_structures" path=""/>', '<MODULEPATH id="juce_data_structures" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_dsp" path=""/>', '<MODULEPATH id="juce_dsp" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_events" path=""/>', '<MODULEPATH id="juce_events" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_graphics" path=""/>', '<MODULEPATH id="juce_graphics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_gui_basics" path=""/>', '<MODULEPATH id="juce_gui_basics" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-        (Get-Content AudioChain.jucer) -replace '<MODULEPATH id="juce_gui_extra" path=""/>', '<MODULEPATH id="juce_gui_extra" path="C:\JUCE\modules"/>' | Set-Content AudioChain.jucer
-    
-    - name: Setup VST2 SDK (if available)
-      shell: powershell
-      run: |
-        if (Test-Path "external/VST_SDK_2.4") {
-          Write-Host "VST2 SDK submodule detected, setting up headers..."
-          $VST2_TARGET_DIR = "C:\JUCE\modules\juce_audio_processors\format_types\VST3_SDK\pluginterfaces\vst2.x"
-          New-Item -ItemType Directory -Force -Path $VST2_TARGET_DIR
-          Copy-Item -Path "external\VST_SDK_2.4\pluginterfaces\vst2.x\*" -Destination $VST2_TARGET_DIR -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "VST2 headers setup complete"
-        } else {
-          Write-Host "No VST2 SDK submodule found, skipping VST2 setup"
-        }
-    
-    - name: Generate Visual Studio project
-      shell: cmd
-      run: |
-        "C:\JUCE\Projucer.exe" --resave AudioChain.jucer
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release -A x64
     
     - name: Build Release
       run: |
-        msbuild Builds/VisualStudio2022/AudioChain.sln /p:Configuration=Release /p:Platform=x64 /m
+        cd build
+        cmake --build . --config Release --parallel
+    
+    - name: Verify build output
+      shell: powershell
+      run: |
+        # Find and verify the built executable
+        $exePath = Get-ChildItem -Path "build" -Recurse -Filter "AudioChain.exe" | Select-Object -First 1
+        
+        if ($exePath) {
+          Write-Host "✓ Build successful! Executable found at: $($exePath.FullName)"
+          Write-Host "File size: $('{0:N0}' -f $exePath.Length) bytes"
+          
+          # Check if it's a valid PE file
+          $fileHeader = Get-Content $exePath.FullName -Encoding Byte -TotalCount 2
+          if ($fileHeader[0] -eq 77 -and $fileHeader[1] -eq 90) {
+            Write-Host "✓ Valid Windows executable (PE format)"
+          } else {
+            Write-Host "⚠️  Warning: Executable may not be valid PE format"
+          }
+        } else {
+          Write-Host "❌ Build failed - executable not found"
+          Write-Host "Build directory contents:"
+          Get-ChildItem -Path "build" -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
+          exit 1
+        }
     
     - name: Package Windows build
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       shell: powershell
       run: |
-        # Find the built executable
-        $exePath = Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Filter "AudioChain.exe" | Where-Object { $_.Directory.Name -eq "Release" } | Select-Object -First 1
+        # Find the built executable in the CMake build directory
+        $exePath = Get-ChildItem -Path "build" -Recurse -Filter "AudioChain.exe" | Select-Object -First 1
         
         if ($exePath) {
           Write-Host "Found executable at: $($exePath.FullName)"
@@ -180,16 +173,16 @@ jobs:
           # Create ZIP
           Compress-Archive -Path "AudioChain-Windows-Release\*" -DestinationPath "AudioChain-Windows.zip"
         } else {
-          Write-Host "Executable not found, listing build directories..."
-          Get-ChildItem -Path "Builds\VisualStudio2022" -Recurse -Include "*.exe" | ForEach-Object { Write-Host $_.FullName }
-        }
+          Write-Host "Executable not found, listing build directory contents..."
+          Get-ChildItem -Path "build" -Recurse -Include "*.exe" | ForEach-Object { Write-Host $_.FullName }
+        fi
     
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
       with:
         name: AudioChain-Windows
         path: |
-          Builds/VisualStudio2022/**/Release/**/*.exe
+          build/**/*.exe
           AudioChain-Windows.zip
         if-no-files-found: ignore
 

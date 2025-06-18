@@ -6,29 +6,12 @@ project(AudioChain VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add JUCE
-add_subdirectory(/usr/local/JUCE/modules/juce_audio_basics juce_audio_basics)
-add_subdirectory(/usr/local/JUCE/modules/juce_audio_devices juce_audio_devices)
-add_subdirectory(/usr/local/JUCE/modules/juce_audio_formats juce_audio_formats)
-add_subdirectory(/usr/local/JUCE/modules/juce_audio_processors juce_audio_processors)
-add_subdirectory(/usr/local/JUCE/modules/juce_audio_utils juce_audio_utils)
-add_subdirectory(/usr/local/JUCE/modules/juce_core juce_core)
-add_subdirectory(/usr/local/JUCE/modules/juce_data_structures juce_data_structures)
-add_subdirectory(/usr/local/JUCE/modules/juce_dsp juce_dsp)
-add_subdirectory(/usr/local/JUCE/modules/juce_events juce_events)
-add_subdirectory(/usr/local/JUCE/modules/juce_graphics juce_graphics)
-add_subdirectory(/usr/local/JUCE/modules/juce_gui_basics juce_gui_basics)
-add_subdirectory(/usr/local/JUCE/modules/juce_gui_extra juce_gui_extra)
-
-# Alternative: Use find_package if JUCE is installed properly
-# find_package(JUCE CONFIG REQUIRED)
-
-# Or use the more modern approach with FetchContent
+# Download and setup JUCE using FetchContent (modern approach)
 include(FetchContent)
 FetchContent_Declare(
     JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG 7.0.9
+    GIT_TAG 8.0.8
 )
 FetchContent_MakeAvailable(JUCE)
 
@@ -98,7 +81,24 @@ elseif(WIN32)
     target_compile_definitions(AudioChain PRIVATE
         JUCE_DIRECTSOUND=1
         JUCE_WASAPI=1
+        JUCE_ASIO=1
+        JUCE_USE_WINRT_MIDI=1
     )
+    
+    # Windows-specific compiler settings
+    if(MSVC)
+        target_compile_options(AudioChain PRIVATE
+            /bigobj          # Handle large object files
+            /W3              # Warning level 3
+            /wd4996          # Disable deprecation warnings
+        )
+        
+        # Enable multicore compilation
+        set_target_properties(AudioChain PROPERTIES
+            VS_GLOBAL_UseMultiCoreCompilation "true"
+            VS_GLOBAL_EnforceProcessCountAcrossBuilds "true"
+        )
+    endif()
 endif()
 
 # VST2 SDK support (if available)
