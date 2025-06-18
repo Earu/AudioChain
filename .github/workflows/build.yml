@@ -32,6 +32,15 @@ jobs:
         # Make Projucer executable
         sudo chmod +x /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer
     
+    - name: Setup JUCE global path
+      run: |
+        # Set up global JUCE modules path
+        mkdir -p ~/Library/Application\ Support/Projucer
+        echo '<?xml version="1.0" encoding="UTF-8"?>' > ~/Library/Application\ Support/Projucer/Projucer.settings
+        echo '<PROPERTIES>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
+        echo '  <VALUE name="defaultJuceModulePath" val="/usr/local/JUCE/modules"/>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
+        echo '</PROPERTIES>' >> ~/Library/Application\ Support/Projucer/Projucer.settings
+    
     - name: Setup VST2 SDK (if available)
       run: |
         if [ -d "external/VST_SDK_2.4" ]; then
@@ -104,6 +113,18 @@ jobs:
         Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/7.0.9/juce-7.0.9-windows.zip" -OutFile "juce.zip"
         Expand-Archive -Path "juce.zip" -DestinationPath "juce-temp"
         Move-Item -Path "juce-temp\JUCE" -Destination "C:\JUCE"
+    
+    - name: Setup JUCE global path
+      shell: powershell
+      run: |
+        # Set up global JUCE modules path
+        $projucerSettingsDir = "$env:APPDATA\Projucer"
+        New-Item -ItemType Directory -Force -Path $projucerSettingsDir
+        $settingsFile = "$projucerSettingsDir\Projucer.settings"
+        '<?xml version="1.0" encoding="UTF-8"?>' | Out-File -FilePath $settingsFile -Encoding UTF8
+        '<PROPERTIES>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
+        '  <VALUE name="defaultJuceModulePath" val="C:\JUCE\modules"/>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
+        '</PROPERTIES>' | Out-File -FilePath $settingsFile -Append -Encoding UTF8
     
     - name: Setup VST2 SDK (if available)
       shell: powershell
