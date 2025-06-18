@@ -1028,18 +1028,31 @@ void PluginChainComponent::PluginBrowser::paintListBoxItem(int rowNumber, juce::
     } else if (rowNumber < pluginHost.getAvailablePlugins().size()) {
         auto &plugin = pluginHost.getAvailablePlugins().getReference(rowNumber);
 
-        // Plugin name in bold, larger font
+        auto textBounds = bounds.reduced(24, 8);
+        
+        // Create three-column layout: Plugin Name | Manufacturer | Format
+        auto formatWidth = 80;  // Fixed width for format column
+        auto manufacturerWidth = 150; // Fixed width for manufacturer column
+        
+        auto formatArea = textBounds.removeFromRight(formatWidth);
+        auto manufacturerArea = textBounds.removeFromRight(manufacturerWidth);
+        auto nameArea = textBounds; // Remaining space for plugin name
+        
+        // Plugin name in bold, larger font (left column)
         g.setColour(rowIsSelected ? juce::Colours::white : juce::Colour(0xfff0f0f0));
         g.setFont(juce::Font("Arial Black", 14.0f, juce::Font::bold));
-
-        auto textBounds = bounds.reduced(24, 8);
-        auto nameArea = textBounds.removeFromTop(textBounds.getHeight() * 0.6f);
         g.drawText(plugin.name.toUpperCase(), nameArea.toNearestInt(), juce::Justification::centredLeft);
 
-        // Manufacturer in smaller, lighter font
+        // Manufacturer in smaller font (middle column)
         g.setColour(rowIsSelected ? juce::Colour(0xffcccccc) : juce::Colour(0xffaaaaaa));
         g.setFont(juce::Font("Arial", 11.0f, juce::Font::plain));
-        g.drawText(plugin.manufacturer, textBounds.toNearestInt(), juce::Justification::centredLeft);
+        g.drawText(plugin.manufacturer, manufacturerArea.toNearestInt(), juce::Justification::centred);
+        
+        // Format in smaller font with color coding (right column)
+        auto formatColor = getFormatColor(plugin.pluginFormatName, rowIsSelected);
+        g.setColour(formatColor);
+        g.setFont(juce::Font("Arial", 10.0f, juce::Font::bold));
+        g.drawText(plugin.pluginFormatName.toUpperCase(), formatArea.toNearestInt(), juce::Justification::centred);
     }
 }
 
@@ -1142,6 +1155,22 @@ void PluginChainComponent::PluginBrowser::resetPathsToDefaults() {
 void PluginChainComponent::PluginBrowser::refreshSearchPathsList() {
     searchPathsList.updateContent();
     searchPathsList.repaint();
+}
+
+juce::Colour PluginChainComponent::PluginBrowser::getFormatColor(const juce::String& formatName, bool isSelected) {
+    // Color coding for different plugin formats
+    if (formatName.containsIgnoreCase("VST3")) {
+        return isSelected ? juce::Colour(0xff00d4ff) : juce::Colour(0xff0088cc); // Cyan for VST3
+    } else if (formatName.containsIgnoreCase("VST") && !formatName.containsIgnoreCase("VST3")) {
+        return isSelected ? juce::Colour(0xffffaa00) : juce::Colour(0xffcc8800); // Orange for VST2
+    } else if (formatName.containsIgnoreCase("AudioUnit") || formatName.containsIgnoreCase("AU")) {
+        return isSelected ? juce::Colour(0xff88ff00) : juce::Colour(0xff66cc00); // Green for Audio Unit
+    } else if (formatName.containsIgnoreCase("CLAP")) {
+        return isSelected ? juce::Colour(0xffff6600) : juce::Colour(0xffcc4400); // Red-orange for CLAP
+    } else {
+        // Default color for unknown formats
+        return isSelected ? juce::Colour(0xffcccccc) : juce::Colour(0xff888888); // Grey
+    }
 }
 
 //==============================================================================

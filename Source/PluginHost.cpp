@@ -1002,8 +1002,12 @@ juce::Array<PluginHost::PluginFormatInfo> PluginHost::getSupportedFormats() cons
     // VST2 format (when available)
     PluginFormatInfo vst2Info;
     vst2Info.formatName = "VST";
+#if JUCE_WINDOWS
     vst2Info.fileExtensions.add("dll");
+#elif JUCE_MAC
     vst2Info.fileExtensions.add("vst");
+    vst2Info.directoryExtensions.add("vst");  // VST2 bundles on macOS
+#endif
     formats.add(vst2Info);
     
 #if JUCE_MAC
@@ -1041,9 +1045,16 @@ juce::AudioPluginFormat* PluginHost::getFormatForFile(const juce::File &pluginFi
         }
         
         // VST2 format
-        if (formatName.contains("vst") && !formatName.contains("vst3") &&
-            (extension == "dll" || extension == "vst")) {
-            return format;
+        if (formatName.contains("vst") && !formatName.contains("vst3")) {
+#if JUCE_WINDOWS
+            if (extension == "dll") {
+                return format;
+            }
+#elif JUCE_MAC
+            if (extension == "vst" || (pluginFile.isDirectory() && extension == "vst")) {
+                return format;
+            }
+#endif
         }
         
 #if JUCE_MAC

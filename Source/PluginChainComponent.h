@@ -164,6 +164,7 @@ class PluginChainComponent : public juce::Component, public juce::DragAndDropCon
         void removeSelectedPath();
         void resetPathsToDefaults();
         void refreshSearchPathsList();
+        juce::Colour getFormatColor(const juce::String& formatName, bool isSelected);
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginBrowser)
     };
