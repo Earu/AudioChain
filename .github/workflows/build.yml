@@ -32,6 +32,15 @@ jobs:
         # Make Projucer executable
         sudo chmod +x /usr/local/JUCE/Projucer.app/Contents/MacOS/Projucer
     
+    - name: Debug JUCE installation
+      run: |
+        echo "=== JUCE Installation Debug ==="
+        ls -la /usr/local/JUCE/
+        echo "=== JUCE Modules Directory ==="
+        ls -la /usr/local/JUCE/modules/ || echo "Modules directory not found"
+        echo "=== Current .jucer file MODULEPATH lines ==="
+        grep "MODULEPATH" AudioChain.jucer
+    
     - name: Configure JUCE module paths
       run: |
         # Update the .jucer file to set correct module paths for CI
@@ -47,6 +56,13 @@ jobs:
         sed -i '' 's|<MODULEPATH id="juce_graphics" path=""/>|<MODULEPATH id="juce_graphics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
         sed -i '' 's|<MODULEPATH id="juce_gui_basics" path=""/>|<MODULEPATH id="juce_gui_basics" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
         sed -i '' 's|<MODULEPATH id="juce_gui_extra" path=""/>|<MODULEPATH id="juce_gui_extra" path="/usr/local/JUCE/modules"/>|g' AudioChain.jucer
+        
+        echo "=== After sed modifications ==="
+        grep "MODULEPATH" AudioChain.jucer
+        
+        echo "=== Verifying JUCE modules exist ==="
+        ls -la /usr/local/JUCE/modules/juce_core/ || echo "juce_core module not found"
+        ls -la /usr/local/JUCE/modules/juce_audio_basics/ || echo "juce_audio_basics module not found"
     
     - name: Setup VST2 SDK (if available)
       run: |
