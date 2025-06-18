@@ -34,38 +34,6 @@ jobs:
         cd build
         cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
 
-    - name: Verify microphone permissions in built app
-      run: |
-        # Find the built app in the CMake build directory
-        APP_PATH=$(find build -name "*.app" -type d | head -1)
-
-        if [ -n "$APP_PATH" ]; then
-          echo "Checking Info.plist in: $APP_PATH"
-          INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
-
-          if [ -f "$INFO_PLIST_PATH" ]; then
-            echo "=== Info.plist contents ==="
-            plutil -p "$INFO_PLIST_PATH"
-            echo ""
-
-            # Check specifically for microphone permission
-            if plutil -p "$INFO_PLIST_PATH" | grep -q "NSMicrophoneUsageDescription"; then
-              echo "✓ Microphone permission successfully included in final app"
-              echo "Permission text:"
-              plutil -p "$INFO_PLIST_PATH" | grep -A1 "NSMicrophoneUsageDescription"
-            else
-              echo "⚠️  Warning: NSMicrophoneUsageDescription not found in final Info.plist"
-              echo "This may cause the app to crash when requesting microphone access on macOS"
-            fi
-          else
-            echo "⚠️  Warning: Info.plist not found at expected location"
-          fi
-        else
-          echo "⚠️  Warning: Built app not found, cannot verify permissions"
-          echo "Listing build directory contents:"
-          find build -type f -name "*.app" || find build -type d
-        fi
-
     - name: Create DMG
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
@@ -121,51 +89,11 @@ jobs:
     - name: Download and setup ASIO SDK
       shell: powershell
       run: |
-        Write-Host "Downloading ASIO SDK..."
         $asioUrl = 'https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip'
         $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-
-        try {
-          Invoke-WebRequest -Uri $asioUrl -OutFile 'asio_sdk.zip' -UserAgent $userAgent -ErrorAction Stop
-          Write-Host "✓ ASIO SDK downloaded successfully"
-        } catch {
-          Write-Host "❌ Failed to download ASIO SDK: $($_.Exception.Message)"
-          exit 1
-        }
-
-        if (-not (Test-Path 'external')) {
-          New-Item -ItemType Directory -Force -Path 'external'
-        }
-
-        Write-Host "Extracting ASIO SDK..."
-        try {
-          Expand-Archive -Path 'asio_sdk.zip' -DestinationPath 'external' -Force -ErrorAction Stop
-          Write-Host "✓ ASIO SDK extracted successfully"
-        } catch {
-          Write-Host "❌ Failed to extract ASIO SDK: $($_.Exception.Message)"
-          exit 1
-        }
-
         $expectedPath = 'external/asiosdk_2.3.3_2019-06-14'
-        if (Test-Path $expectedPath) {
-          Write-Host "✓ ASIO SDK found at expected location: $expectedPath"
-          $itemCount = (Get-ChildItem $expectedPath).Count
-          Write-Host "Found $itemCount items in ASIO SDK directory"
-        } else {
-          Write-Host "❌ ASIO SDK not found at expected location"
-          Write-Host "Available directories in external:"
-          Get-ChildItem 'external' -Directory | ForEach-Object { Write-Host "  $($_.Name)" }
-
-          $asioDir = Get-ChildItem 'external' -Directory | Where-Object { $_.Name -like '*asio*' } | Select-Object -First 1
-          if ($asioDir) {
-            Write-Host "Found ASIO directory: $($asioDir.Name), renaming to expected name..."
-            Move-Item $asioDir.FullName $expectedPath
-            Write-Host "✓ Renamed to: $expectedPath"
-          } else {
-            Write-Host "❌ No ASIO directory found in extraction"
-            exit 1
-          }
-        }
+        Invoke-WebRequest -Uri $asioUrl -OutFile 'asio_sdk.zip' -UserAgent $userAgent -ErrorAction Stop
+        Expand-Archive -Path 'asio_sdk.zip' -DestinationPath 'external' -Force -ErrorAction Stop
 
     - name: Configure CMake build
       run: |
@@ -177,40 +105,6 @@ jobs:
       run: |
         cd build
         cmake --build . --config Release --parallel
-
-    - name: Verify build output
-      shell: powershell
-      run: |
-        # Find and verify the built executable
-        $exePath = Get-ChildItem -Path "build" -Recurse -Filter "AudioChain.exe" | Select-Object -First 1
-
-        if ($exePath) {
-          Write-Host "✓ Build successful! Executable found at: $($exePath.FullName)"
-          Write-Host "File size: $('{0:N0}' -f $exePath.Length) bytes"
-          Write-Host ""
-
-          # Check if ASIO SDK was available during build
-          if (Test-Path "external/asiosdk_2.3.3_2019-06-14") {
-            Write-Host "✓ ASIO SDK detected - Build includes ASIO support for low-latency audio"
-            Write-Host "✓ DirectSound and WASAPI support also enabled"
-          } else {
-            Write-Host "ℹ️  ASIO SDK not found - Build includes DirectSound and WASAPI support"
-            Write-Host "ℹ️  For ASIO support, ensure the SDK is downloaded during CI"
-          }
-
-          # Check if it's a valid PE file
-          $fileHeader = Get-Content $exePath.FullName -Encoding Byte -TotalCount 2
-          if ($fileHeader[0] -eq 77 -and $fileHeader[1] -eq 90) {
-            Write-Host "✓ Valid Windows executable (PE format)"
-          } else {
-            Write-Host "⚠️  Warning: Executable may not be valid PE format"
-          }
-        } else {
-          Write-Host "❌ Build failed - executable not found"
-          Write-Host "Build directory contents:"
-          Get-ChildItem -Path "build" -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
-          exit 1
-        }
 
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
@@ -242,16 +136,6 @@ jobs:
           ## AudioChain Release v${{ github.run_number }}
 
           Cross-platform audio processing application with VST plugin chain support.
-
-          ### Downloads
-          - **macOS**: AudioChain-macOS.dmg
-          - **Windows**: AudioChain.exe
-
-          ### Features
-          - Real-time audio processing through VST plugin chains
-          - Support for VST2, VST3, and Audio Unit (macOS) plugins
-          - Cross-platform compatibility (macOS and Windows)
-          - Modern JUCE-based GUI
 
           Built from commit: ${{ github.sha }}
         files: |
