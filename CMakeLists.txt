@@ -113,12 +113,12 @@ endif()
 # ASIO SDK support - Only if manually provided in external directory
 if(WIN32)
     # Check if ASIO SDK is available in external directory
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk")
         message(STATUS "ASIO SDK found in external directory")
         target_include_directories(AudioChain PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/common
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/host
-            ${CMAKE_CURRENT_SOURCE_DIR}/external/asiosdk_2.3.3_2019-06-14/host/pc
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/common
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/host
+            ${CMAKE_CURRENT_SOURCE_DIR}/external/asio_sdk/host/pc
         )
         target_compile_definitions(AudioChain PRIVATE
             JUCE_ASIO=1
@@ -126,6 +126,6 @@ if(WIN32)
         message(STATUS "ASIO support enabled")
     else()
         message(STATUS "ASIO SDK not found - ASIO support disabled")
-        message(STATUS "To enable ASIO: Extract ASIO SDK to external/asiosdk_2.3.3_2019-06-14/")
+        message(STATUS "To enable ASIO: Extract ASIO SDK to external/asio_sdk/")
     endif()
 endif()

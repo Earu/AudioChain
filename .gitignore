@@ -30,3 +30,5 @@ Builds/VisualStudio2022/*.lastbuildstate
 Builds/VisualStudio2022/*.recipe
 
 build/*
+external/asio_sdk
+asio_sdk.zip
